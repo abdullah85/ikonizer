@@ -1,3 +1,4 @@
 # ikonizer
 A web app that enables manipulation of svg, as well as svg sprites or icon sets
-[[spriteEditor.html]]
+
+* The [main app][spriteEditor.html].
