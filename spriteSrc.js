@@ -1,16 +1,9 @@
-var figLst = [];
-var xmlResp;
-var svgSprite;
 var svgSymbols = [];
 var symbolNames = [];
 var selectedSymbols = {};
 var symbolDefs={};
-var xmlDoc;
 var prevIDDrawn = "";
 var currIdx= -1;
-var resizer;
-var leftSide;
-var rightSide;
 var mode="import"; // either import or edit ...
 var editSrc = "";
 var editTarget = "<svg id=\"bViews-symbolDisplayed\"></svg>";
@@ -27,28 +20,98 @@ var srcWrapper = "height:159px; width:157px; padding: 15px;";
 var targetSymbols = [];
 var targetSymbolDefs = [];
 var targetSymbolIds = {};
-var targetPositionFor = {};
-var currentSourceSymbols = [];
 const reader = new FileReader();
 const parser = new DOMParser();
-var srcImportedByUser;
-var srcToBeImported;
 
-function saveSymbol(){
-    if(currIdx < 0){
-	alert('No Current Symbol !');
-	return;
+ /**
+  * Initializing the first screen ...
+  */
+ function initializeAndImport() {
+
+    var xmlhttp = new XMLHttpRequest();
+    xmlhttp.open("get", importFile, true);
+    xmlhttp.onreadystatechange = function() {
+	if (this.readyState == 4 && this.status == 200) {
+	    processResult(this);
+	}
+    };
+    xmlhttp.send(null);
+
+    reader.onload=function(){
+	console.log(reader.result);
     }
 
-    let currSymbol = targetSymbols[currIdx];
-    let src = document.getElementById('srcArea');
-    document.getElementById(currSymbol).innerHTML = src.innerText;
-    let result = parser.parseFromString(src.innerText, "text/xml");
-    document.getElementById(currSymbol).innerHTML =     result.childNodes[0].innerHTML;
-    svgSymbols[currIdx].innerHTML =     result.childNodes[0].innerHTML;
-}
-function resetTargetStructures(){
+    srcSelector = document.getElementById('srcSelector');
 
+    srcSelector.addEventListener("change", function(){
+	fileSelected = this.files[0];
+	console.log('fileSelected : '+fileSelected.name);
+	reader.readAsText(fileSelected);
+    });
+}
+
+function processResult(xmlhttp) {
+    let xmlResp = xmlhttp.responseXML;
+    let b = document.body;
+    let svgSprite = xmlResp.childNodes[1];
+    svgSprite.childNodes.forEach(function(elem) {
+	if(elem.tagName == "symbol"){
+	    symbolNames.push(elem.id);
+	    symbolDefs[elem.id] = svgSymbols.length; // just a pointer into svgSymbols...
+	    selectedSymbols[elem.id] = false;
+	    svgSymbols.push(elem);
+	}
+    });
+    b.innerHTML = svgSprite.outerHTML + b.innerHTML;
+    initializedSymbols = true;
+    importSymbols();
+    purgeNonSymbols();
+}
+
+/**
+ * Two modes
+ * a) Import - all functionality related to input, output of icon sets
+ * b) Edit - all functionality related to editing individual svg and saving the definitions
+ */
+function ikonizer(){
+    if (mode=="import"){
+	mode = "edit";
+	setEditView();
+    }
+    else {
+	mode = "import";
+	setImportView();
+    }
+}
+
+/**
+ * Code related to Importing a Source file and selecting symbols as well as exporting target symbols...
+ */
+
+ function setImportView() {
+    let iconL = document.getElementById('iconList');
+    let viewerEditor = document.getElementById('viewerEditor');
+
+    // Remove Preview area for Import View...
+    iconL.style.display = "none";
+    viewerEditor.style.height = "91%";
+
+    //Button set to hide
+    let bHide = document.getElementById('editButtons');
+    //Button set to display
+    let bDispl = document.getElementById('importButtons');
+    bHide.style.display="none";
+    bDispl.style.display="";
+
+    let src = document.getElementById('srcArea');
+    let target = document.getElementById('targetArea');
+    src.style.contentEditable = false;
+    src.style.display="flex";
+
+    computeImportSrc();
+    computeImportTarget();
+    src.innerHTML = importSrc;
+    target.innerHTML = importTarget;
 }
 
 // Code related to input/output of svg sprites ...
@@ -63,8 +126,7 @@ function readFile(input) {
     reader.onload = function() {
 //	console.log(reader.result);
 	fileContents = reader.result;
-	srcImportedByUser = reader.result;
-	processFile();
+	processFile(reader.result);
     };
 
     reader.onerror = function() {
@@ -72,22 +134,67 @@ function readFile(input) {
     };
 }
 
-function showFile(input) {
-    let file = input.files[0];
-    alert(`File name: ${file.name}`); // e.g my.png
-    alert(`Last modified: ${file.lastModified}`); // e.g 1552830408824
+function processFile(srcImportedByUser) {
+    let svgSprite = "";
+
+    let srcToBeImported = parser.parseFromString(srcImportedByUser, "text/xml");
+
+    //	 console.log(xmlDoc);
+    suffixes = ["","1","2","3"];
+    let b = document.body;
+    svgSprite = srcToBeImported.childNodes[1];
+    let updatedSymbolNames = [];
+    let updatedSvgSymbols = [];
+    svgSprite.childNodes.forEach(function(elem) {
+	if(elem.tagName == "symbol"){
+	    suffixId = 0;
+	    while(suffixId < suffixes.length && (symbolDefs[elem.id + suffixes[suffixId]] !== undefined))
+		    suffixId++;
+	    if(symbolDefs[elem.id+suffixes[suffixId]] !== undefined){
+		    alert('Unable to import ' + elem.id + '. Already defined (and renamed three times) ...');
+		    return;
+	    }
+	    elem.id = elem.id + suffixes[suffixId];
+	    updatedSymbolNames.push(elem.id);
+	    symbolDefs[elem.id] = updatedSvgSymbols.length; // symbolDefs will need to be reset for existing elements. Done next...
+	    updatedSvgSymbols.push(elem);
+	    selectedSymbols[elem.id] = false; // no changes for this needed in next iterations...
+	}
+
+    });
+    b.innerHTML = svgSprite.outerHTML + b.innerHTML;
+
+    for(let i=0; i < svgSymbols.length; i++) {
+	elem = svgSymbols[i];
+	updatedSymbolNames.push(elem.id);
+	symbolDefs[elem.id] = updatedSvgSymbols.length;
+	updatedSvgSymbols.push(elem);
+    }
+
+    svgSymbols = updatedSvgSymbols;
+    symbolNames = updatedSymbolNames;
+
+    initializedSymbols = true;
+    importSymbols();
+    purgeNonSymbols();
 }
 
-//!--
-var license ="<!--\nGenerated by Ikonizer developed by @bitwiseviews - https://bitwiseviews.github.io/ikonizer\n"+
-	"License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License)\n-->\n";
+function purgeNonSymbols(){
+    c0 = document.body.childNodes[0];
+    for(let i=0; i < c0.childNodes.length; i++){
+	if(c0.childNodes[i].nodeName !== "symbol")
+	    c0.removeChild(c0.childNodes[i]);
+    }
+}
+
+var license ="<!--\nGenerated by Ikonizer developed by @bitwiseviews - https://bitwiseviews.github.io/ikonizer -->\n";
 
 function obtainTargetSprite(){
     let header = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"+license+
 	"<svg xmlns=\"http://www.w3.org/2000/svg\" style=\"display: none;\">\n";
     let targetSymbolsOut = "";
     for(let i=0 ; i < targetSymbols.length; i++){
-	targetSymbolsOut += "  "+targetSymbolDefs[i].outerHTML+"\n";
+	    targetSymbolsOut += "  "+document.getElementById(targetSymbols[i]).outerHTML+"\n";
     }
     let footer = "</svg>\n";
 
@@ -108,23 +215,117 @@ function downloadTargetAsSvgSprite(){
     URL.revokeObjectURL(link.href);
 }
 
-function ikonizer(){
-    if (mode=="import"){
-	mode = "edit";
-	setEditView();
+var firstTimeLoad = true;
+function importSymbols(){
+    let target = document.getElementById('targetArea');
+    importTarget = target.innerHTML;
+    setImportView();
+    let s = document.getElementById('start');
+    let nSymb = document.getElementById('nSymbols');
+    let startIdx = +s.value;
+    let nSymbols = +nSymb.value;
+    if(firstTimeLoad) {
+	    nSymbols = svgSymbols.length + 1;// to ensure all symbols selected ...
+	    if(nSymbols > 150)
+	        nSymbols = 150;
+        firstTimeLoad = false;
     }
-    else {
-	mode = "import";
-	setImportView();
+    importStart = startIdx;
+    let endIdx = startIdx + nSymbols - 1;
+    importEnd = endIdx;
+    // New values for start, end ...
+    s.value = (+endIdx) + 1;
+
+    if(importStart < 0) {
+	alert('Incorrect Start Value ... '+s);
+	return;
+    }
+    if(importStart >= svgSymbols.length){
+	alert('Start exceeds available symbols Length.\nReset to 0 ! ');
+	s.value = 0;
+	importStart = 0;
+	importEnd = nSymbols-1;
+    }
+
+    if(importEnd >= svgSymbols.length){
+	importEnd = svgSymbols.length - 1;
+	s.value = svgSymbols.length; // to denote number of symbols, end of list...
+	}
+
+    let srcContainer = document.getElementById('srcContainer');
+    let src = document.getElementById('srcArea');
+    let targetContainer = document.getElementById('targetContainer');
+
+    //    let target = document.getElementById('targetArea');
+    src.contentEditable = "false";
+    if(!initializedSymbols)
+	alert('Symbols not initialized !!!');
+    importSrc = "";
+
+    //    srcContainer.style.flexDirection = "row";
+    target.style.display = "flex";
+    targetContainer.style.display = "flex";
+    targetContainer.style.flexDirection = "row";
+    target.style.flexDirection = "row";
+    target.style.flexWrap = "wrap";
+    targetContainer.style.flexWrap = "wrap";
+    targetContainer.style.overflowX = "scroll";
+    targetContainer.style.overflowY = "scroll";
+    src.style.display = "flex";
+    src.style.flexDirection = "row";
+    src.style.flexWrap = "wrap";
+    for(let i = importStart; i <= importEnd; i++)
+	importSrc += getSVGForSrcImport(symbolNames[i])+"\n";
+    src.innerHTML =  importSrc;
+    setResizer();
+}
+
+function computeImportSrc(){
+    importSrc = "";
+    for(let i=importStart; i<=importEnd; i++)
+        importSrc += getSVGForSrcImport(symbolNames[i])+"\n";
+}
+
+function computeImportTarget(){
+    importTarget = "";
+    for(let i=0; i<targetSymbols.length; i++) {
+    let currSymbol = targetSymbols[i];
+    //TODO: take from symbol defiitions for target
+	let currIdx = +symbolDefs[currSymbol];
+	importTarget += svgForTargetSymbol(targetSymbols[currIdx]);
     }
 }
 
-function setEditView() {
-    let resizer = document.getElementById('dragMe');
-    let leftSide = resizer.previousElementSibling;
-    importWidth = leftSide.style.width;
-    leftSide.style.width = editWidth;
+function getSVGForSrcImport(symbolName){
+    let svgDef = "";
+    svgDef = "<div id=\"src-"+symbolName+"\" style=\"width:135px; padding : 15px; display:flex; flex-direction: column\">";
+    svgDef += "<svg style=\""+srcWrapper+"\" onclick=\"selectSymbol(\'"+symbolName+"\');\"><use xlink:href=\"#"+symbolName+"\"></use>";
+    svgDef += "</svg>";
+    if(selectedSymbols[symbolName] !== false)
+	svgDef += "<label style=\"text-align:center; background-color: black; color : white;\" " +
+	"contentEditable=\"false\" onclick=\"selectSymbol(\'"+symbolName+"\');\" id=\"label-"+symbolName+"\">"+symbolName+"</label>";
+    else
+	svgDef += "<label style=\"text-align:center\" " +
+	"contentEditable=\"false\" onclick=\"selectSymbol(\'"+symbolName+"\');\" id=\"label-"+symbolName+"\">"+symbolName+"</label>";
+    svgDef += "</div>";
+    return svgDef;
+}
 
+function svgForTargetSymbol(symbolName){
+    let targetSymbol ="";
+    //symbolName = svgSymbols[symbolIdx].id;
+    targetSymbol += "<div id=\"target-"+symbolName+"\" style=\"display: flex; flex-direction:column; height:139px;\" "+
+    "onclick = \"selectSymbol('"+symbolName+"');\">";
+    targetSymbol += "<svg width=\"57px\" height=\"37px\" style=\"padding:7px;\"><use xlink:href=\"#"+symbolName+"\"/></svg>";
+    targetSymbol += "<label style=\"text-align:center; width : 57px; height:5px;\" id=\"target-"+symbolName+"\">"+symbolName+"</label>";
+    targetSymbol += "</div>";
+    return targetSymbol;
+}
+
+/**
+ * Edit mode related functionality ...
+ */
+function setEditView() {
     let iconL = document.getElementById('iconList');
     iconListSrc = "";
     // Let's rebuild the icons
@@ -157,7 +358,7 @@ function setEditView() {
 	for(let i=0; i<targetSymbols.length; i++) {
 	    let currSymbol = targetSymbols[i];
 	    let currIdx = +symbolDefs[currSymbol];
-	    target.innerHTML += svgForTargetSymbol(currIdx);
+	    target.innerHTML += svgForTargetSymbol(targetSymbols[currIdx]);
 	}
 	importTarget = target.innerHTML;
     }
@@ -168,18 +369,6 @@ function setEditView() {
     src.style.display="inline";
     src.innerHTML = editSrc;
     target.innerHTML = editTarget;
-    resizer = document.getElementById('dragMe');
-}
-
-function svgForTargetSymbol(symbolIdx){
-    let targetSymbol ="";
-    symbolName = svgSymbols[symbolIdx].id;
-    targetSymbol += "<div id=\"target-"+symbolName+"\" style=\"display: flex; flex-direction:column; height:139px;\" "+
-    "onclick = \"selectSymbol('"+symbolName+"');\">";
-    targetSymbol += "<svg width=\"57px\" height=\"37px\" style=\"padding:7px;\"><use xlink:href=\"#"+symbolName+"\"/></svg>";
-    targetSymbol += "<label style=\"text-align:center; width : 57px; height:5px;\" id=\"target-"+symbolName+"\">"+symbolName+"</label>";
-    targetSymbol += "</div>";
-    return targetSymbol;
 }
 
 function duplicateCurrentlySelected(){
@@ -258,12 +447,6 @@ function modifyLabel(symbolName){
 function svgForSymbolInIconList(symbolIdx){
     let targetSymbol ="";
     symbolName = svgSymbols[symbolIdx].id;
-    //	el.innerHTML = "<div style=\"display:flex; flex-direction:column;\"><svg style=\"border:1px solid green; display:inline;\" "+
-//	    "onclick=\"drawElem('" + svgEl.id+"')\"><use xlink:href='#"+svgEl.id+"' /></svg>" +
-//	    //"<div  style=\"border-left:1px solid black;\">"+
-//	"<label text-align=\"center\" class=\"items-center justify-center\"   id=\"ikonized-"+svgEl.id+"\">"+ svgEl.id+"</label>"
-//	    +"</div>" +
-//	    el.innerHTML;
 
     targetSymbol += "<div id=\"ikon-"+symbolName+"\" style=\"display: flex; flex-direction:column; \"> "+
 	"<div id=\"ikon-svg-"+symbolName+"\" onclick = \"drawElem('"+symbolName+"');\" style=\"\">"+
@@ -283,6 +466,7 @@ function unselectSymbol(symbolName){
     if(label !== undefined && label !== null) {
 	label.style.color = "black";
 	label.style.backgroundColor = "white";
+	label.contentEditable = false;
     }
 
     // For ikon view in iconList
@@ -328,7 +512,7 @@ function selectSymbol(symbolName){
 	for(let i=0; i<targetSymbols.length; i++) {
 	    let currSymbol = targetSymbols[i];
 	    let currIdx = +symbolDefs[currSymbol];
-	    target.innerHTML += svgForTargetSymbol(currIdx);
+	    target.innerHTML += svgForTargetSymbol(targetSymbols[currIdx]);
 	    iconL.innerHTML += svgForSymbolInIconList(currIdx);
 	}
 	targetCopyOnEdit = false;
@@ -341,7 +525,9 @@ function selectSymbol(symbolName){
     let label = document.getElementById("label-"+symbolName);
     label.style.color = "white";
     label.style.backgroundColor = "black";
-    target.innerHTML =  target.innerHTML + svgForTargetSymbol(symbolIdx);
+    label.contentEditable = false;
+    label.cursor = '';
+    target.innerHTML =  target.innerHTML + svgForTargetSymbol(targetSymbols[symbolIdx]);
     iconL.innerHTML = iconL.innerHTML + svgForSymbolInIconList(symbolIdx);
     importTarget = target.innerHTML;
     iconListSrc = iconL.innerHTML;
@@ -354,7 +540,7 @@ function selectAllSymbols(){
 	alert('Symbols Need to be Loaded first!');
     let target = document.getElementById('targetArea');
     let atLeastOneSelected = false;
-    for(let i=importStart; i<importEnd; i++) {
+    for(let i=importStart; i<=importEnd; i++) {
 	let currSymbol = svgSymbols[i].id;
 	let currIdx = +symbolDefs[currSymbol];
 	if (selectedSymbols[currSymbol] === true)
@@ -363,128 +549,11 @@ function selectAllSymbols(){
 	selectSymbol(currSymbol);
     }
     if(!atLeastOneSelected){ // Unselect all elements
-	for(let i=importStart; i<importEnd; i++) {
+	for(let i=importStart; i<=importEnd; i++) {
 	    let currSymbol = svgSymbols[i].id;
 	    unselectSymbol(currSymbol);
 	}
     }
-}
-
-var labelAttr = "dx=\"15%\" dy = \"100%\"";
-var labelStyle = "fill: blue;  font:bold 13px sans-serif; ";
-function getSVGForSrcImport(idx, symbolName){
-    currentSourceSymbols.push(idx);
-    let svgDef = "";
-    svgDef = "<div id=\"src-"+symbolName+"\" style=\"width:135px; padding : 15px; display:flex; flex-direction: column\">";
-    svgDef += "<svg style=\""+srcWrapper+"\" onclick=\"selectSymbol(\'"+symbolName+"\');\"><use xlink:href=\"#"+symbolName+"\"></use>";
-    svgDef += "</svg>";
-    if(selectedSymbols[symbolName] !== false)
-	svgDef += "<label style=\"text-align:center; background-color: black; color : white;\" " +
-	"onclick=\"selectSymbol(\'"+symbolName+"\');\" id=\"label-"+symbolName+"\">"+symbolName+"</label>";
-    else
-	svgDef += "<label style=\"text-align:center\" " +
-	"onclick=\"selectSymbol(\'"+symbolName+"\');\" id=\"label-"+symbolName+"\">"+symbolName+"</label>";
-    svgDef += "</div>";
-    return svgDef;
-}
-
-function importSymbols(){
-    let target = document.getElementById('targetArea');
-    importTarget = target.innerHTML;
-    setImportView();
-    let s = document.getElementById('start');
-    let e = document.getElementById('end');
-    let startIdx = +s.value - 1;
-    importStart = startIdx;
-    let endIdx = +e.value ;
-    importEnd = endIdx;
-
-    if(importStart < 0) {
-	alert('Incorrect Start Value ... '+s);
-	return;
-    }
-    if(importEnd >= svgSymbols.length){
-	alert('At End of Symbol List (#'+svgSymbols.length+').');
-    }
-
-    let srcContainer = document.getElementById('srcContainer');
-    let src = document.getElementById('srcArea');
-    let targetContainer = document.getElementById('targetContainer');
-
-    //    let target = document.getElementById('targetArea');
-    src.contentEditable = "false";
-    if(!initializedSymbols)
-	alert('Symbols not initialized !!!');
-    importSrc = "";
-
-    //    srcContainer.style.flexDirection = "row";
-    target.style.display = "flex";
-    targetContainer.style.display = "flex";
-    targetContainer.style.flexDirection = "row";
-    target.style.flexDirection = "row";
-    target.style.flexWrap = "wrap";
-    targetContainer.style.flexWrap = "wrap";
-    targetContainer.style.overflowX = "scroll";
-    targetContainer.style.overflowY = "scroll";
-    src.style.display = "flex";
-    src.style.flexDirection = "row";
-    src.style.flexWrap = "wrap";
-    currentSourceSymbols = [];
-    for(let i = startIdx; i < endIdx; i++)
-	importSrc += getSVGForSrcImport(i, symbolNames[i])+"\n";
-    src.innerHTML =  importSrc;
-    setResizer();
-    e.step = +endIdx - startIdx;
-    s.value = (+endIdx);
-    e.value = (+endIdx) + (+e.step);
-}
-
-function computeImportSrc(){
-    importSrc = "";
-    for(let i=importStart; i<importEnd-1; i++)
-	importSrc += getSVGForSrcImport(i, symbolNames[i])+"\n";
-}
-
-function computeImportTarget(){
-    importTarget = "";
-    for(let i=0; i<targetSymbols.length; i++) {
-	let currSymbol = targetSymbols[i];
-	let currIdx = +symbolDefs[currSymbol];
-	importTarget += svgForTargetSymbol(currIdx);
-    }
-}
-
-function setImportView() {
-    resizer = document.getElementById('dragMe');
-    leftSide = resizer.previousElementSibling;
-    editWidth = leftSide.style.width;
-    leftSide.style.width = importWidth;
-
-    let iconL = document.getElementById('iconList');
-    let viewerEditor = document.getElementById('viewerEditor');
-
-    // Remove Preview area for Import View...
-    iconL.style.display = "none";
-    viewerEditor.style.height = "91%";
-
-    //Button set to hide
-    let bHide = document.getElementById('editButtons');
-    //Button set to display
-    let bDispl = document.getElementById('importButtons');
-    bHide.style.display="none";
-    bDispl.style.display="";
-
-    let srcContainer = document.getElementById('srcContainer');
-    let src = document.getElementById('srcArea');
-    let targetContainer = document.getElementById('targetContainer');
-    let target = document.getElementById('targetArea');
-    src.style.contentEditable = false;
-    src.style.display="flex";
-
-    computeImportSrc();
-    computeImportTarget();
-    src.innerHTML = importSrc;
-    target.innerHTML = importTarget;
 }
 
 /**
@@ -497,9 +566,9 @@ Copyright (c) 2016 Andrej Hristoliubov <anhr@mail.ru>
 var resizerFunction = function() {
 
     // Query the element
-    resizer = document.getElementById('dragMe');
-    leftSide = resizer.previousElementSibling;
-    rightSide = resizer.nextElementSibling;
+    let resizer = document.getElementById('dragMe');
+    let leftSide = resizer.previousElementSibling;
+    let rightSide = resizer.nextElementSibling;
 
     // The current position of mouse
     let x = 0;
@@ -550,8 +619,6 @@ var resizerFunction = function() {
         // Remove the handlers of `mousemove` and `mouseup`
         document.removeEventListener('mousemove', mouseMoveHandler);
         document.removeEventListener('mouseup', mouseUpHandler);
-
-	resizer = document.getElementById('dragMe');
 	resizer.style.cursor = "ew-resize";
     };
 
@@ -561,108 +628,8 @@ var resizerFunction = function() {
 
 function setResizer(){
     resizerFunction();
-    resizer = document.getElementById('dragMe');
+    let resizer = document.getElementById('dragMe');
     resizer.style.cursor = "ew-resize";
-}
-
-function initializeAndGetSymbols(n) {
-
-    var xmlhttp = new XMLHttpRequest();
-    xmlhttp.open("get", importFile, true);
-    xmlhttp.onreadystatechange = function() {
-	if (this.readyState == 4 && this.status == 200) {
-	    processResult(this, n);
-	}
-    };
-    xmlhttp.send(null);
-
-    reader.onload=function(){
-	console.log(reader.result);
-    }
-
-    srcSelector = document.getElementById('srcSelector');
-
-    srcSelector.addEventListener("change", function(){
-	fileSelected = this.files[0];
-	console.log('fileSelected : '+fileSelected.name);
-	reader.readAsText(fileSelected);
-    });
-}
-
-function processResult(xmlhttp, n) {
-    var xmlDoc = xmlhttp.responseXML.documentElement;
-    xmlResp = xmlhttp.responseXML;
-    //	 console.log(xmlDoc);
-    let b = document.body;
-    svgSprite = xmlResp.childNodes[1];
-    svgSprite.childNodes.forEach(function(elem) {
-	if(elem.tagName == "symbol"){
-	    symbolNames.push(elem.id);		 
-	    symbolDefs[elem.id] = svgSymbols.length; // just a pointer into svgSymbols...
-	    selectedSymbols[elem.id] = false;
-	    svgSymbols.push(elem);
-	}
-
-    });
-    b.innerHTML = svgSprite.outerHTML + b.innerHTML;
-    initializedSymbols = true;
-    importSymbols();
-    purgeNonSymbols();
-}
-
-function processFile() {
-    svgSprite = "";
-
-    srcToBeImported = parser.parseFromString(srcImportedByUser, "text/xml");
-    let c0Clone = document.body.childNodes[0].cloneNode();
-    document.body.childNodes[0] = srcToBeImported.childNodes[1];
-
-    //	 console.log(xmlDoc);
-    suffixes = ["","1","2","3"];
-    let b = document.body;
-    svgSprite = srcToBeImported.childNodes[1];
-    let updatedSymbolNames = [];
-    let updatedSvgSymbols = [];
-    svgSprite.childNodes.forEach(function(elem) {
-	if(elem.tagName == "symbol"){
-	    suffixId = 0;
-	    while(suffixId < suffixes.length && (symbolDefs[elem.id + suffixes[suffixId]] !== undefined))
-		suffixId++;
-	    if(symbolDefs[elem.id+suffixes[suffixId]] !== undefined){
-		alert('Unable to import ' + elem.id + '. Already defined (and renamed three times) ...');
-		return;
-	    }
-	    elem.id = elem.id + suffixes[suffixId];
-	    updatedSymbolNames.push(elem.id);
-	    symbolDefs[elem.id] = updatedSvgSymbols.length; // symbolDefs will need to be reset for existing elements. Done next...
-	    updatedSvgSymbols.push(elem);
-	    selectedSymbols[elem.id] = false; // no changes for this needed in next iterations...
-	}
-
-    });
-    b.innerHTML = svgSprite.outerHTML + b.innerHTML;
-
-    for(let i=0; i < svgSymbols.length; i++) {
-	elem = svgSymbols[i];
-	updatedSymbolNames.push(elem.id);
-	symbolDefs[elem.id] = updatedSvgSymbols.length;
-	updatedSvgSymbols.push(elem);
-    }
-
-    svgSymbols = updatedSvgSymbols;
-    symbolNames = updatedSymbolNames;
-
-    initializedSymbols = true;
-    importSymbols();
-    purgeNonSymbols();
-}
-
-function purgeNonSymbols(){
-    c0 = document.body.childNodes[0];
-    for(let i=0; i < c0.childNodes.length; i++){
-	if(c0.childNodes[i].nodeName !== "symbol")
-	    c0.removeChild(c0.childNodes[i]);
-    }
 }
 
 function drawElem(id){
@@ -789,3 +756,17 @@ function iconListVisibility(){
 	viewerEditor.style.height = "91%";
     }
 }
+
+
+// function saveSymbol(){
+//     if(currIdx < 0){
+// 	alert('No Current Symbol !');
+// 	return;
+//     }
+
+//     let currSymbol = targetSymbols[currIdx];
+//     let src = document.getElementById('srcArea');
+//     let result = parser.parseFromString(src.innerText, "text/xml");
+//     document.getElementById(currSymbol).innerHTML =     result.childNodes[0].innerHTML;
+//     svgSymbols[currIdx].childNodes =     result.childNodes[0].childNodes;
+// }

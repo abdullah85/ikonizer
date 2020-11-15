@@ -6,25 +6,21 @@
     <style></style>
   </head>
 
-  <body onload="initializeAndGetSymbols(3);">
+  <body onload="initializeAndImport();">
 
     <div id="iconList" ></div>
 
     <div class="buttonWrapper" style="display:flex">
-      <div class=""
-	<span>&nbsp;</span>
-	<button class="button2" onclick="ikonizer()">Ikonizer</button>
-	<button class="button2" onclick="downloadTargetAsSvgSprite()">Save</button>
-	<button class="button2" onclick="iconListVisibility()">Save As</button>
-      </div>
-      <span>
-	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-      </span>
+      <span>&nbsp;</span>
+      <button class="button2" onclick="ikonizer()">Ikonizer</button>
+      <button class="button2" onclick="downloadTargetAsSvgSprite()">Save</button>
+      <span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+
       <div id="importButtons">
-	<label class="label1" for="start">Start:</label>
-	<input class="input1" type="number" min="0"  id="start" value="1">
-	<label class="label1" for="end">End:</label>
-	<input class="input1" type="number" min="1"  id="end" value="5">
+	<label class="label1" for="start">Start At:</label>
+	<input class="input1" type="number" min="0"  id="start" value="0">
+	<label class="label1" for="end"># Symbols:</label>
+	<input class="input1" type="number" min="1"  id="nSymbols" value="150">
 	<button class="button2" onclick="importSymbols();">Load Symbols</button>
 	<button class="button2" onclick="selectAllSymbols();">Select All</button>
 	<span>&nbsp;&nbsp;&nbsp;</span>

@@ -11,11 +11,11 @@ License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL
     <path xmlns="http://www.w3.org/2000/svg" d="M 55 15 L 375 15 " stroke="black" stroke-width="3.75"/>
   </symbol>
   <symbol xmlns="http://www.w3.org/2000/svg" id="line3" viewBox="0 0 512 512">
-    <path xmlns="http://www.w3.org/2000/svg" d="M 55 15 L 375 15 " stroke="black" stroke-width="3.75"/>
-  </symbol>
+<path xmlns="http://www.w3.org/2000/svg" d="M 375 15 L 375 375 " stroke="black" stroke-width="3.75"/>
+</symbol>
   <symbol xmlns="http://www.w3.org/2000/svg" id="line4" viewBox="0 0 512 512">
-    <path xmlns="http://www.w3.org/2000/svg" d="M 55 15 L 375 15 " stroke="black" stroke-width="3.75"/>
-  </symbol>
+<path xmlns="http://www.w3.org/2000/svg" d="M 15 375 L 375 375 " stroke="black" stroke-width="3.75"/>
+</symbol>
   <symbol xmlns="http://www.w3.org/2000/svg" id="line5" viewBox="0 0 512 512">
     <path xmlns="http://www.w3.org/2000/svg" d="M 55 15 L 375 15 " stroke="black" stroke-width="3.75"/>
   </symbol>
@@ -50,9 +50,6 @@ License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL
     <path xmlns="http://www.w3.org/2000/svg" d="M 55 15 L 375 15 " stroke="black" stroke-width="3.75"/>
   </symbol>
   <symbol xmlns="http://www.w3.org/2000/svg" id="line16" viewBox="0 0 512 512">
-    <path xmlns="http://www.w3.org/2000/svg" d="M 55 15 L 375 15 " stroke="black" stroke-width="3.75"/>
-  </symbol>
-  <symbol xmlns="http://www.w3.org/2000/svg" id="line17" viewBox="0 0 512 512">
     <path xmlns="http://www.w3.org/2000/svg" d="M 55 15 L 375 15 " stroke="black" stroke-width="3.75"/>
   </symbol>
 </svg>
