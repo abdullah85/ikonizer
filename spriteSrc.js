@@ -50,10 +50,11 @@ const parser = new DOMParser();
     });
 }
 
+var xmlResp;
 function processResult(xmlhttp) {
-    let xmlResp = xmlhttp.responseXML;
+    xmlResp = xmlhttp.responseXML;
     let b = document.body;
-    let svgSprite = xmlResp.childNodes[1];
+    let svgSprite = getSvgElementFromContents(xmlResp);
     svgSprite.childNodes.forEach(function(elem) {
 	if(elem.tagName == "symbol"){
 	    symbolNames.push(elem.id);
@@ -66,6 +67,15 @@ function processResult(xmlhttp) {
     initializedSymbols = true;
     loadSymbols();
     purgeNonSymbols();
+}
+
+
+function getSvgElementFromContents(contents){
+    let i=0;
+    while(contents.childNodes[i].nodeName !== "svg" && i < contents.childNodes.length)    i++;
+    if(i < contents.childNodes.length) return contents.childNodes[i];
+    // TODO: further input checking ... to do
+    alert('Input file is not a valid sprite.');
 }
 
 /**
@@ -134,17 +144,20 @@ function readFile(input) {
     };
 }
 
+var srcToBeImported;
 function processFile(srcImportedByUser) {
     let svgSprite = "";
 
-    let srcToBeImported = parser.parseFromString(srcImportedByUser, "text/xml");
+    srcToBeImported = parser.parseFromString(srcImportedByUser, "text/xml");
 
     //	 console.log(xmlDoc);
     suffixes = ["","1","2","3"];
     let b = document.body;
-    svgSprite = srcToBeImported.childNodes[1];
+    svgSprite = getSvgElementFromContents(srcToBeImported);
     let updatedSymbolNames = [];
     let updatedSvgSymbols = [];
+    let svgDef = document.body.childNodes[0];
+    let previousFirstSymbol = svgDef.childNodes[0];
     svgSprite.childNodes.forEach(function(elem) {
 	if(elem.tagName == "symbol"){
 	    suffixId = 0;
@@ -155,14 +168,15 @@ function processFile(srcImportedByUser) {
 		    return;
 	    }
 	    elem.id = elem.id + suffixes[suffixId];
-	    updatedSymbolNames.push(elem.id);
+        svgDef.insertBefore(elem, previousFirstSymbol);
+        updatedSymbolNames.push(elem.id);
 	    symbolDefs[elem.id] = updatedSvgSymbols.length; // symbolDefs will need to be reset for existing elements. Done next...
 	    updatedSvgSymbols.push(elem);
 	    selectedSymbols[elem.id] = false; // no changes for this needed in next iterations...
 	}
 
     });
-    b.innerHTML = svgSprite.outerHTML + b.innerHTML;
+    // b.innerHTML = svgSprite.outerHTML + b.innerHTML;
 
     for(let i=0; i < svgSymbols.length; i++) {
 	elem = svgSymbols[i];
@@ -219,7 +233,6 @@ var firstTimeLoad = true;
 function loadSymbols(){
     let target = document.getElementById('targetArea');
     importTarget = target.innerHTML;
-    setImportView();
     let s = document.getElementById('start');
     let nSymb = document.getElementById('nSymbols');
     let startIdx = +s.value;
@@ -228,25 +241,28 @@ function loadSymbols(){
 	    nSymbols = svgSymbols.length + 1;// to ensure all symbols selected ...
 	    if(nSymbols > 50)
 	        nSymbols = 50;
+        importStart = 0;
         firstTimeLoad = false;
     }
-    importStart = startIdx;
     let endIdx = startIdx + nSymbols - 1;
-    importEnd = endIdx;
-    // New values for start, end ...
-    s.value = (+endIdx) + 1;
 
     if(importStart < 0) {
 	alert('Incorrect Start Value ... '+s);
 	return;
     }
-    if(importStart >= svgSymbols.length){
-	alert('Start exceeds available symbols Length.\nReset to 0 ! ');
-	s.value = 0;
-	importStart = 0;
-    importEnd = nSymbols-1;
+
+    // Sanity check before assiging to importStart
+    if(s.value >= svgSymbols.length){
+	alert('Start exceeds available symbols Length.\nReset to 0 ! (previous value : '+importStart+') ');
+    s.value = 0;
+    // maintain earlier importStart, importEnd values.
     return;
     }
+
+    importStart = startIdx;
+    importEnd = endIdx;
+    // New value for start
+    s.value = (+endIdx) + 1;
 
     if(importEnd >= svgSymbols.length){
 	importEnd = svgSymbols.length - 1;
@@ -332,7 +348,6 @@ function selectSymbol(symbolName){
     }
 
     let target = document.getElementById('targetArea');
-    selectedSymbols[symbolName] = true;
     let targetElem = document.getElementById('target-'+symbolName);
     if(targetElem !== null) { // TO remove that hidden element ... recompute target area
 	console.log('element exists');
@@ -347,6 +362,7 @@ function selectSymbol(symbolName){
     let symbolDef = document.getElementById(symbolName);
     // not needed now ...
     targetSymbolDefs.push(symbolDef);
+    selectedSymbols[symbolName] = true;
 
     let label = document.getElementById("label-"+symbolName);
     label.style.color = "white";
