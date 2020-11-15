@@ -324,43 +324,37 @@ function svgForTargetSymbol(symbolName){
 /**
  * Select, unselect symbols in Import view
  */
-var targetCopyOnEdit = false;
 function selectSymbol(symbolName){
-
-    let target = document.getElementById('targetArea');
-    let iconL = document.getElementById('iconList');
 
     if(selectedSymbols[symbolName] !== false) {
 	unselectSymbol(symbolName);
 	return;
     }
 
+    let target = document.getElementById('targetArea');
     selectedSymbols[symbolName] = true;
     let targetElem = document.getElementById('target-'+symbolName);
-    if(targetElem !== null) {
+    if(targetElem !== null) { // TO remove that hidden element ... recompute target area
 	console.log('element exists');
 	target.innerHTML = "";
-	iconL.innerHTML  = "";
 	for(let i=0; i<targetSymbols.length; i++) {
 	    let currSymbol = targetSymbols[i];
-	    let currIdx = +symbolDefs[currSymbol];
-	    target.innerHTML += svgForTargetSymbol(targetSymbols[currIdx]);
+	    target.innerHTML += svgForTargetSymbol(currSymbol);
 	}
-	targetCopyOnEdit = false;
-    }
+	}
     targetSymbolIds[symbolName] = targetSymbols.length;
     targetSymbols.push(symbolName);
-    let symbolIdx = +symbolDefs[symbolName];
-    targetSymbolDefs.push(svgSymbols[symbolIdx]);
+    let symbolDef = document.getElementById(symbolName);
+    // not needed now ...
+    targetSymbolDefs.push(symbolDef);
 
     let label = document.getElementById("label-"+symbolName);
     label.style.color = "white";
     label.style.backgroundColor = "black";
     label.contentEditable = false;
     label.cursor = '';
-    target.innerHTML =  target.innerHTML + svgForTargetSymbol(svgSymbols[symbolIdx].id);
+    target.innerHTML =  target.innerHTML + svgForTargetSymbol(symbolName);
     importTarget = target.innerHTML;
-    iconListSrc = iconL.innerHTML;
     let latestSymbol = document.getElementById('target-'+symbolName);
     latestSymbol.scrollIntoView({behavior: "smooth", block: "end", inline: "nearest"})
 }
@@ -376,17 +370,13 @@ function unselectSymbol(symbolName){
 	label.contentEditable = false;
     }
 
-    // For ikon view in iconList
-    let elemID1 = document.getElementById('ikon-'+symbolName);
-    if(elemID1 !== undefined && elemID1 !== null)
-	elemID1.style.display="none";
-
     let i = 0;
     for(;i<targetSymbols.length && targetSymbols[i] !== symbolName; i++)
-	;
-    if(i<targetSymbols.length) {
-	targetSymbols.splice(i,1);
-	targetSymbolDefs.splice(i,1);
+    ;
+    let targetSymbolIdx = i;
+    if(targetSymbolIdx<targetSymbols.length) {
+	targetSymbols.splice(targetSymbolIdx,1);
+	targetSymbolDefs.splice(targetSymbolIdx,1);
     }
     for( ; i<targetSymbols.length; i++) {
 	let currSymbol = targetSymbols[i];
@@ -399,11 +389,9 @@ function unselectSymbol(symbolName){
 function selectAllSymbols(){
     if(importStart === -1 || importEnd === -1)
 	alert('Symbols Need to be Loaded first!');
-    let target = document.getElementById('targetArea');
     let atLeastOneSelected = false;
     for(let i=importStart; i<=importEnd; i++) {
 	let currSymbol = svgSymbols[i].id;
-	let currIdx = +symbolDefs[currSymbol];
 	if (selectedSymbols[currSymbol] === true)
 	    continue;
 	atLeastOneSelected = true;
@@ -426,8 +414,7 @@ function setEditView() {
     // Let's rebuild the icons
     for(let i=0; i<targetSymbols.length; i++) {
 	let currSymbol = targetSymbols[i];
-	let currIdx = +symbolDefs[currSymbol];
-	iconListSrc += svgForSymbolInIconList(svgSymbols[currIdx].id);
+	iconListSrc += svgForSymbolInIconList(currSymbol);
     }
     iconL.innerHTML = iconListSrc;
     let viewerEditor = document.getElementById('viewerEditor');
@@ -443,20 +430,14 @@ function setEditView() {
     bHide.style.display="none";
     bDispl.style.display="";
 
-    let srcContainer = document.getElementById('srcContainer');
     let src = document.getElementById('srcArea');
-    let targetContainer = document.getElementById('targetContainer');
     let target = document.getElementById('targetArea');
-
-    if(targetCopyOnEdit) {
 	target.innerHTML = "";
 	for(let i=0; i<targetSymbols.length; i++) {
 	    let currSymbol = targetSymbols[i];
-	    let currIdx = +symbolDefs[currSymbol];
 	    target.innerHTML += svgForTargetSymbol(currSymbol);
 	}
 	importTarget = target.innerHTML;
-    }
     importSrc = src.innerHTML;
 
     src.contentEditable = true;
