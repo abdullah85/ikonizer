@@ -64,7 +64,7 @@ function processResult(xmlhttp) {
     });
     b.innerHTML = svgSprite.outerHTML + b.innerHTML;
     initializedSymbols = true;
-    importSymbols();
+    loadSymbols();
     purgeNonSymbols();
 }
 
@@ -175,7 +175,7 @@ function processFile(srcImportedByUser) {
     symbolNames = updatedSymbolNames;
 
     initializedSymbols = true;
-    importSymbols();
+    loadSymbols();
     purgeNonSymbols();
 }
 
@@ -216,7 +216,7 @@ function downloadTargetAsSvgSprite(){
 }
 
 var firstTimeLoad = true;
-function importSymbols(){
+function loadSymbols(){
     let target = document.getElementById('targetArea');
     importTarget = target.innerHTML;
     setImportView();
@@ -226,8 +226,8 @@ function importSymbols(){
     let nSymbols = +nSymb.value;
     if(firstTimeLoad) {
 	    nSymbols = svgSymbols.length + 1;// to ensure all symbols selected ...
-	    if(nSymbols > 150)
-	        nSymbols = 150;
+	    if(nSymbols > 50)
+	        nSymbols = 50;
         firstTimeLoad = false;
     }
     importStart = startIdx;
@@ -244,7 +244,8 @@ function importSymbols(){
 	alert('Start exceeds available symbols Length.\nReset to 0 ! ');
 	s.value = 0;
 	importStart = 0;
-	importEnd = nSymbols-1;
+    importEnd = nSymbols-1;
+    return;
     }
 
     if(importEnd >= svgSymbols.length){
@@ -290,9 +291,7 @@ function computeImportTarget(){
     importTarget = "";
     for(let i=0; i<targetSymbols.length; i++) {
     let currSymbol = targetSymbols[i];
-    //TODO: take from symbol defiitions for target
-	let currIdx = +symbolDefs[currSymbol];
-	importTarget += svgForTargetSymbol(targetSymbols[currIdx]);
+	importTarget += svgForTargetSymbol(currSymbol);
     }
 }
 
@@ -323,139 +322,47 @@ function svgForTargetSymbol(symbolName){
 }
 
 /**
- * Edit mode related functionality ...
+ * Select, unselect symbols in Import view
  */
-function setEditView() {
-    let iconL = document.getElementById('iconList');
-    iconListSrc = "";
-    // Let's rebuild the icons
-    for(let i=0; i<targetSymbols.length; i++) {
-	let currSymbol = targetSymbols[i];
-	let currIdx = +symbolDefs[currSymbol];
-	iconListSrc += svgForSymbolInIconList(currIdx);
-    }
-    iconL.innerHTML = iconListSrc;
-    let viewerEditor = document.getElementById('viewerEditor');
+var targetCopyOnEdit = false;
+function selectSymbol(symbolName){
 
-    // Default is to show Preview Area for Edit View...
-    iconL.style.display = "flex";
-    viewerEditor.style.height = "65%";
-
-    //Button set to hide
-    let bHide = document.getElementById('importButtons');
-    //Button set to display
-    let bDispl = document.getElementById('editButtons');
-    bHide.style.display="none";
-    bDispl.style.display="";
-
-    let srcContainer = document.getElementById('srcContainer');
-    let src = document.getElementById('srcArea');
-    let targetContainer = document.getElementById('targetContainer');
     let target = document.getElementById('targetArea');
+    let iconL = document.getElementById('iconList');
 
-    if(targetCopyOnEdit) {
+    if(selectedSymbols[symbolName] !== false) {
+	unselectSymbol(symbolName);
+	return;
+    }
+
+    selectedSymbols[symbolName] = true;
+    let targetElem = document.getElementById('target-'+symbolName);
+    if(targetElem !== null) {
+	console.log('element exists');
 	target.innerHTML = "";
+	iconL.innerHTML  = "";
 	for(let i=0; i<targetSymbols.length; i++) {
 	    let currSymbol = targetSymbols[i];
 	    let currIdx = +symbolDefs[currSymbol];
 	    target.innerHTML += svgForTargetSymbol(targetSymbols[currIdx]);
 	}
-	importTarget = target.innerHTML;
+	targetCopyOnEdit = false;
     }
-    importSrc = src.innerHTML;
+    targetSymbolIds[symbolName] = targetSymbols.length;
+    targetSymbols.push(symbolName);
+    let symbolIdx = +symbolDefs[symbolName];
+    targetSymbolDefs.push(svgSymbols[symbolIdx]);
 
-    src.contentEditable = true;
-    src.style.cursor = "auto";
-    src.style.display="inline";
-    src.innerHTML = editSrc;
-    target.innerHTML = editTarget;
-}
-
-function duplicateCurrentlySelected(){
-    if(currIdx < 0 || currIdx >= targetSymbols.length){
-	alert('No Symbol currently Selected !');
-	return;
-    }
-    let currSymbolName = targetSymbols[currIdx];
-    if(Object.keys(symbolDefs).includes(currSymbolName+'-copy')){
-	alert('copy of '+currSymbolName+' already exists. Rename existing copy first');
-	return;
-    }
-    let currSvgDefs = document.body.childNodes[0];
-    let svgIdx = symbolDefs[targetSymbols[currIdx]];
-    let currSymbolDef  = currSvgDefs.childNodes[svgIdx];
-    let clonedNode = currSymbolDef.cloneNode();
-    clonedNode.id = currSymbolName+'-copy';
-    clonedNode.innerHTML = currSvgDefs.childNodes[svgIdx].innerHTML;
-    // First, definition ...
-    currSvgDefs.insertBefore(clonedNode, currSymbolDef);
-    svgSymbols.splice(svgIdx, 0, clonedNode);
-    symbolDefs[clonedNode.id] = svgIdx;
-    // Then, for current view in iconList
-    let elem = document.getElementById('ikon-'+currSymbolName);
-    let elemClone = elem.cloneNode();
-    elemClone.id = clonedNode.id;
-    elemClone.innerHTML = svgForSymbolInIconList(svgIdx);
-    elem.parentElement.insertBefore(elemClone, elem);
-
-    targetSymbols.splice(currIdx, 0, elemClone.id);
-    targetSymbolDefs.splice(currIdx, 0, elemClone);
-    targetSymbolIds[clonedNode.id] = currIdx;
-}
-
-function reLabel(symbolName, newName){
-    let targetIdx = targetSymbolIds[symbolName];
-    targetSymbols[targetIdx] = newName;
-    targetSymbolIds[newName] = targetSymbolIds[symbolName];  // Change object targetSymbolIds
-    symbolIdx = symbolDefs[symbolName];
-    symbolDefs[newName] = symbolDefs[symbolName]; // this is also an object
-    symbolNames[symbolIdx] = newName;
-    svgSymbols[symbolIdx].id = newName;
-    // svg element for sprites definition from src ...
-    currentSpriteDefs = document.body.childNodes[0];
-    currentSpriteDefs.childNodes[symbolIdx].id = newName;
-    let elem1 = document.getElementById('ikon-'+symbolName);
-    elem1.innerHTML = svgForSymbolInIconList(symbolIdx);
-    if(prevIDDrawn === symbolName){
-	prevIDDrawn = newName;
-	let elem = document.getElementById('ikonLabel-'+newName);
-	elem.style.color = "white";
-	elem.style.backgroundColor = "black";
-    }
-    delete symbolDefs[symbolName];
-//    t.childNodes[0].childNodes[0].attributes['xlink:href']='#'+newName;
-}
-
-var labelEdit=false;
-function modifyLabel(symbolName){
-    targetId = targetSymbolIds[symbolName];
-    let currSymbolLabel = document.getElementById('ikonLabel-'+symbolName);
-    let newLabel = window.prompt('Enter new label ', symbolName);
-    if (newLabel === "" || newLabel === symbolName || newLabel === undefined || newLabel === null) // need to check input here ...
-	return;
-
-    if(Object.keys(symbolDefs).includes(newLabel)) {
-	    alert('Label : \''+newLabel+'\' already defined in loaded source!');
-//	    currSymbolLabel.contentEditable = true;
-	    return;
-    }
-    reLabel(symbolName, newLabel);
-//    else	currSymbolLabel.contentEditable = true;
-    console.log('modifying label for '+symbolName);
-}
-
-function svgForSymbolInIconList(symbolIdx){
-    let targetSymbol ="";
-    symbolName = svgSymbols[symbolIdx].id;
-
-    targetSymbol += "<div id=\"ikon-"+symbolName+"\" style=\"display: flex; flex-direction:column; \"> "+
-	"<div id=\"ikon-svg-"+symbolName+"\" onclick = \"drawElem('"+symbolName+"');\" style=\"\">"+
-	"<svg style=\"border:1px solid green; display:inline;\"><use xlink:href='#"+symbolName+"' /></svg>"+
-	"</div>"+
-	"<label style=\"text-align : center;\" onclick=\"modifyLabel('"+symbolName+"');\" "+
-	"id=\"ikonLabel-"+symbolName+"\">"+ symbolName +"</label>"; // class=\"items-center justify-center\"
-    targetSymbol += "</div>";
-    return targetSymbol;
+    let label = document.getElementById("label-"+symbolName);
+    label.style.color = "white";
+    label.style.backgroundColor = "black";
+    label.contentEditable = false;
+    label.cursor = '';
+    target.innerHTML =  target.innerHTML + svgForTargetSymbol(svgSymbols[symbolIdx].id);
+    importTarget = target.innerHTML;
+    iconListSrc = iconL.innerHTML;
+    let latestSymbol = document.getElementById('target-'+symbolName);
+    latestSymbol.scrollIntoView({behavior: "smooth", block: "end", inline: "nearest"})
 }
 
 function unselectSymbol(symbolName){
@@ -489,52 +396,6 @@ function unselectSymbol(symbolName){
     targetCopyOnEdit = true;
 }
 
-var targetCopyOnEdit = false;
-function selectSymbol(symbolName){
-
-    let srcContainer = document.getElementById('srcContainer');
-    let src = document.getElementById('srcArea');
-    let targetContainer = document.getElementById('targetContainer');
-    let target = document.getElementById('targetArea');
-    let iconL = document.getElementById('iconList');
-
-    if(selectedSymbols[symbolName] !== false) {
-	unselectSymbol(symbolName);
-	return;
-    }
-
-    selectedSymbols[symbolName] = true;
-    let targetElem = document.getElementById('target-'+symbolName);
-    if(targetElem !== null) {
-	console.log('element exists');
-	target.innerHTML = "";
-	iconL.innerHTML  = "";
-	for(let i=0; i<targetSymbols.length; i++) {
-	    let currSymbol = targetSymbols[i];
-	    let currIdx = +symbolDefs[currSymbol];
-	    target.innerHTML += svgForTargetSymbol(targetSymbols[currIdx]);
-	    iconL.innerHTML += svgForSymbolInIconList(currIdx);
-	}
-	targetCopyOnEdit = false;
-    }
-    targetSymbolIds[symbolName] = targetSymbols.length;
-    targetSymbols.push(symbolName);
-    let symbolIdx = +symbolDefs[symbolName];
-    targetSymbolDefs.push(svgSymbols[symbolIdx]);
-
-    let label = document.getElementById("label-"+symbolName);
-    label.style.color = "white";
-    label.style.backgroundColor = "black";
-    label.contentEditable = false;
-    label.cursor = '';
-    target.innerHTML =  target.innerHTML + svgForTargetSymbol(targetSymbols[symbolIdx]);
-    iconL.innerHTML = iconL.innerHTML + svgForSymbolInIconList(symbolIdx);
-    importTarget = target.innerHTML;
-    iconListSrc = iconL.innerHTML;
-    let latestSymbol = document.getElementById('target-'+symbolName);
-    latestSymbol.scrollIntoView({behavior: "smooth", block: "end", inline: "nearest"})
-}
-
 function selectAllSymbols(){
     if(importStart === -1 || importEnd === -1)
 	alert('Symbols Need to be Loaded first!');
@@ -557,79 +418,52 @@ function selectAllSymbols(){
 }
 
 /**
-resizerFunction from https://github.com/Azarlak/EvoCiv
+ * Edit mode related functionality ...
+ */
+function setEditView() {
+    let iconL = document.getElementById('iconList');
+    iconListSrc = "";
+    // Let's rebuild the icons
+    for(let i=0; i<targetSymbols.length; i++) {
+	let currSymbol = targetSymbols[i];
+	let currIdx = +symbolDefs[currSymbol];
+	iconListSrc += svgForSymbolInIconList(svgSymbols[currIdx].id);
+    }
+    iconL.innerHTML = iconListSrc;
+    let viewerEditor = document.getElementById('viewerEditor');
 
-The MIT License (MIT)
+    // Default is to show Preview Area for Edit View...
+    iconL.style.display = "flex";
+    viewerEditor.style.height = "65%";
 
-Copyright (c) 2016 Andrej Hristoliubov <anhr@mail.ru>
-*/
-var resizerFunction = function() {
+    //Button set to hide
+    let bHide = document.getElementById('importButtons');
+    //Button set to display
+    let bDispl = document.getElementById('editButtons');
+    bHide.style.display="none";
+    bDispl.style.display="";
 
-    // Query the element
-    let resizer = document.getElementById('dragMe');
-    let leftSide = resizer.previousElementSibling;
-    let rightSide = resizer.nextElementSibling;
+    let srcContainer = document.getElementById('srcContainer');
+    let src = document.getElementById('srcArea');
+    let targetContainer = document.getElementById('targetContainer');
+    let target = document.getElementById('targetArea');
 
-    // The current position of mouse
-    let x = 0;
-    let y = 0;
-    let leftWidth = 0;
+    if(targetCopyOnEdit) {
+	target.innerHTML = "";
+	for(let i=0; i<targetSymbols.length; i++) {
+	    let currSymbol = targetSymbols[i];
+	    let currIdx = +symbolDefs[currSymbol];
+	    target.innerHTML += svgForTargetSymbol(currSymbol);
+	}
+	importTarget = target.innerHTML;
+    }
+    importSrc = src.innerHTML;
 
-    // Handle the mousedown event
-    // that's triggered when user drags the resizer
-    const mouseDownHandler = function(e) {
-        // Get the current mouse position
-        x = e.clientX;
-        y = e.clientY;
-        leftWidth = leftSide.getBoundingClientRect().width;
-
-        // Attach the listeners to `document`
-        document.addEventListener('mousemove', mouseMoveHandler);
-        document.addEventListener('mouseup', mouseUpHandler);
-    };
-
-    const mouseMoveHandler = function(e) {
-        // How far the mouse has been moved
-        const dx = e.clientX - x;
-        const dy = e.clientY - y;
-
-        const newLeftWidth = (leftWidth + dx) * 100 / resizer.parentNode.getBoundingClientRect().width;
-        leftSide.style.width = `${newLeftWidth}%`;
-
-        resizer.style.cursor = 'col-resize';
-        document.body.style.cursor = 'col-resize';
-
-        leftSide.style.userSelect = 'none';
-        leftSide.style.pointerEvents = 'none';
-
-        rightSide.style.userSelect = 'none';
-        rightSide.style.pointerEvents = 'none';
-    };
-
-    const mouseUpHandler = function() {
-        resizer.style.removeProperty('cursor');
-        document.body.style.removeProperty('cursor');
-
-        leftSide.style.removeProperty('user-select');
-        leftSide.style.removeProperty('pointer-events');
-
-        rightSide.style.removeProperty('user-select');
-        rightSide.style.removeProperty('pointer-events');
-
-        // Remove the handlers of `mousemove` and `mouseup`
-        document.removeEventListener('mousemove', mouseMoveHandler);
-        document.removeEventListener('mouseup', mouseUpHandler);
-	resizer.style.cursor = "ew-resize";
-    };
-
-	 // Attach the handler
-    resizer.addEventListener('mousedown', mouseDownHandler);
-};
-
-function setResizer(){
-    resizerFunction();
-    let resizer = document.getElementById('dragMe');
-    resizer.style.cursor = "ew-resize";
+    src.contentEditable = true;
+    src.style.cursor = "auto";
+    src.style.display="inline";
+    src.innerHTML = editSrc;
+    target.innerHTML = editTarget;
 }
 
 function drawElem(id){
@@ -757,6 +591,168 @@ function iconListVisibility(){
     }
 }
 
+function svgForSymbolInIconList(symbolName){
+    let targetSymbol ="";
+    // symbolName = svgSymbols[symbolIdx].id;
+
+    targetSymbol += "<div id=\"ikon-"+symbolName+"\" style=\"display: flex; flex-direction:column; \"> "+
+	"<div id=\"ikon-svg-"+symbolName+"\" onclick = \"drawElem('"+symbolName+"');\" style=\"\">"+
+	"<svg style=\"border:1px solid green; display:inline;\"><use xlink:href='#"+symbolName+"' /></svg>"+
+	"</div>"+
+	"<label style=\"text-align : center;\" onclick=\"modifyLabel('"+symbolName+"');\" "+
+	"id=\"ikonLabel-"+symbolName+"\">"+ symbolName +"</label>"; // class=\"items-center justify-center\"
+    targetSymbol += "</div>";
+    return targetSymbol;
+}
+
+function duplicateCurrentlySelected(){
+    if(currIdx < 0 || currIdx >= targetSymbols.length){
+	alert('No Symbol currently Selected !');
+	return;
+    }
+    let currSymbolName = targetSymbols[currIdx];
+    if(Object.keys(symbolDefs).includes(currSymbolName+'-copy')){
+	alert('copy of '+currSymbolName+' already exists. Rename existing copy first');
+	return;
+    }
+    let currSvgDefs = document.body.childNodes[0];
+    let svgIdx = symbolDefs[targetSymbols[currIdx]];
+    let currSymbolDef  = currSvgDefs.childNodes[svgIdx];
+    let clonedNode = currSymbolDef.cloneNode();
+    clonedNode.id = currSymbolName+'-copy';
+    clonedNode.innerHTML = currSvgDefs.childNodes[svgIdx].innerHTML;
+    // First, definition ...
+    currSvgDefs.insertBefore(clonedNode, currSymbolDef);
+    svgSymbols.splice(svgIdx, 0, clonedNode);
+    symbolDefs[clonedNode.id] = svgIdx;
+    // Then, for current view in iconList
+    let elem = document.getElementById('ikon-'+currSymbolName);
+    let elemClone = elem.cloneNode();
+    elemClone.id = clonedNode.id;
+    elemClone.innerHTML = svgForSymbolInIconList(svgSymbols[svgIdx].id);
+    elem.parentElement.insertBefore(elemClone, elem);
+
+    targetSymbols.splice(currIdx, 0, elemClone.id);
+    targetSymbolDefs.splice(currIdx, 0, elemClone);
+    targetSymbolIds[clonedNode.id] = currIdx;
+}
+
+function reLabel(symbolName, newName){
+    let targetIdx = targetSymbolIds[symbolName];
+    targetSymbols[targetIdx] = newName;
+    targetSymbolIds[newName] = targetSymbolIds[symbolName];  // Change object targetSymbolIds
+    symbolIdx = symbolDefs[symbolName];
+    symbolDefs[newName] = symbolDefs[symbolName]; // this is also an object
+    symbolNames[symbolIdx] = newName;
+    svgSymbols[symbolIdx].id = newName;
+    // svg element for sprites definition from src ...
+    currentSpriteDefs = document.body.childNodes[0];
+    currentSpriteDefs.childNodes[symbolIdx].id = newName;
+    let elem1 = document.getElementById('ikon-'+symbolName);
+    elem1.innerHTML = svgForSymbolInIconList(svgSymbols[symbolIdx].id);
+    if(prevIDDrawn === symbolName){
+	prevIDDrawn = newName;
+	let elem = document.getElementById('ikonLabel-'+newName);
+	elem.style.color = "white";
+	elem.style.backgroundColor = "black";
+    }
+    delete symbolDefs[symbolName];
+//    t.childNodes[0].childNodes[0].attributes['xlink:href']='#'+newName;
+}
+
+var labelEdit=false;
+function modifyLabel(symbolName){
+    targetId = targetSymbolIds[symbolName];
+    let currSymbolLabel = document.getElementById('ikonLabel-'+symbolName);
+    let newLabel = window.prompt('Enter new label ', symbolName);
+    if (newLabel === "" || newLabel === symbolName || newLabel === undefined || newLabel === null) // need to check input here ...
+	return;
+
+    if(Object.keys(symbolDefs).includes(newLabel)) {
+	    alert('Label : \''+newLabel+'\' already defined in loaded source!');
+//	    currSymbolLabel.contentEditable = true;
+	    return;
+    }
+    reLabel(symbolName, newLabel);
+//    else	currSymbolLabel.contentEditable = true;
+    console.log('modifying label for '+symbolName);
+}
+
+/**
+resizerFunction from https://github.com/Azarlak/EvoCiv
+
+The MIT License (MIT)
+
+Copyright (c) 2016 Andrej Hristoliubov <anhr@mail.ru>
+*/
+var resizerFunction = function() {
+
+    // Query the element
+    let resizer = document.getElementById('dragMe');
+    let leftSide = resizer.previousElementSibling;
+    let rightSide = resizer.nextElementSibling;
+
+    // The current position of mouse
+    let x = 0;
+    let y = 0;
+    let leftWidth = 0;
+
+    // Handle the mousedown event
+    // that's triggered when user drags the resizer
+    const mouseDownHandler = function(e) {
+        // Get the current mouse position
+        x = e.clientX;
+        y = e.clientY;
+        leftWidth = leftSide.getBoundingClientRect().width;
+
+        // Attach the listeners to `document`
+        document.addEventListener('mousemove', mouseMoveHandler);
+        document.addEventListener('mouseup', mouseUpHandler);
+    };
+
+    const mouseMoveHandler = function(e) {
+        // How far the mouse has been moved
+        const dx = e.clientX - x;
+        const dy = e.clientY - y;
+
+        const newLeftWidth = (leftWidth + dx) * 100 / resizer.parentNode.getBoundingClientRect().width;
+        leftSide.style.width = `${newLeftWidth}%`;
+
+        resizer.style.cursor = 'col-resize';
+        document.body.style.cursor = 'col-resize';
+
+        leftSide.style.userSelect = 'none';
+        leftSide.style.pointerEvents = 'none';
+
+        rightSide.style.userSelect = 'none';
+        rightSide.style.pointerEvents = 'none';
+    };
+
+    const mouseUpHandler = function() {
+        resizer.style.removeProperty('cursor');
+        document.body.style.removeProperty('cursor');
+
+        leftSide.style.removeProperty('user-select');
+        leftSide.style.removeProperty('pointer-events');
+
+        rightSide.style.removeProperty('user-select');
+        rightSide.style.removeProperty('pointer-events');
+
+        // Remove the handlers of `mousemove` and `mouseup`
+        document.removeEventListener('mousemove', mouseMoveHandler);
+        document.removeEventListener('mouseup', mouseUpHandler);
+	resizer.style.cursor = "ew-resize";
+    };
+
+	 // Attach the handler
+    resizer.addEventListener('mousedown', mouseDownHandler);
+};
+
+function setResizer(){
+    resizerFunction();
+    let resizer = document.getElementById('dragMe');
+    resizer.style.cursor = "ew-resize";
+}
 
 // function saveSymbol(){
 //     if(currIdx < 0){

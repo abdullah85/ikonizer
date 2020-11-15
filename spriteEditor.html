@@ -13,6 +13,7 @@
     <div class="buttonWrapper" style="display:flex">
       <span>&nbsp;</span>
       <button class="button2" onclick="ikonizer()">Ikonizer</button>
+      <span>&nbsp;&nbsp;&nbsp;</span>
       <button class="button2" onclick="downloadTargetAsSvgSprite()">Save</button>
       <span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
 
@@ -21,7 +22,7 @@
 	<input class="input1" type="number" min="0"  id="start" value="0">
 	<label class="label1" for="end"># Symbols:</label>
 	<input class="input1" type="number" min="1"  id="nSymbols" value="150">
-	<button class="button2" onclick="importSymbols();">Load Symbols</button>
+	<button class="button2" onclick="loadSymbols();">Load Symbols</button>
 	<button class="button2" onclick="selectAllSymbols();">Select All</button>
 	<span>&nbsp;&nbsp;&nbsp;</span>
 	<input type="file" id="srcSelector" class="button2" accept=".svg" onchange="readFile(this)"/>
