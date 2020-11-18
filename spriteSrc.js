@@ -189,6 +189,7 @@ function processFile(srcImportedByUser) {
     symbolNames = updatedSymbolNames;
 
     initializedSymbols = true;
+    document.getElementById('start').value = 0;
     loadSymbols();
     purgeNonSymbols();
 }
@@ -463,50 +464,68 @@ function setEditView() {
     target.innerHTML = editTarget;
 }
 
-function drawElem(id){
-    currIdx = targetSymbolIds[id];
+function resetDrawArea(){
     let drawArea = document.getElementById('targetArea');
-    let dChildren = drawArea.childNodes;
-    let svgDraw = undefined;
-    let i = 0;
-    for(; i< dChildren.length && dChildren[i].tagName !== "svg"; i++);
-    if( i < drawArea.childNodes.length) // then drawArea.childNodes[i].tagName === "svg"	     
-	svgDraw = document.getElementById('targetArea').childNodes[i];
-    else {
-	document.innerHTML = "<svg id=\"bitwiseViews-symbolDisplayed\"></svg>"; //reset drawing area ...
-	for(let i =0; i< drawArea.childNodes.length && drawArea[i].tagName !== "svg"; i++);
-	if( i < drawArea.childNodes.length) // then drawArea.childNodes[i].tagName === "svg"	     
-	    svgDraw = document.getElementById('targetArea').childNodes[i];
-	else {
-	    alert('Error while resetting the drawing area');
-	    return;
-	}
+    drawArea.innerHTML = "<svg id=\"bViews-symbolDisplayed\"> </svg>";
+}
+
+function resetSrcArea(){
+    let srcArea = document.getElementById('srcArea');
+    srcArea.innerText = "";
+}
+
+function drawSymbol(symbolName){
+    currIdx = targetSymbols.indexOf(symbolName);
+    if(currIdx < 0) {
+        alert("symbolName : '"+symbolName+"' not found in target Symbol List.");
+        return;
     }
 
-    let symbol = svgSymbols[symbolDefs[id]];
-    let viewB = symbol.getAttribute('viewBox');
-    let ikonLabel = document.getElementById('ikonLabel-'+id);
+    let targetElem = document.getElementById('bViews-symbolDisplayed');
+    let toReset = (targetElem === undefined) || (targetElem === null);
+    toReset = toReset ||  (!toReset && targetElem.parentElement === undefined && targetElem.parentElement === null);
+    toReset = toReset || targetElem.parentElement.childElementCount !== 1;
+    if(toReset) resetDrawArea();
+
+    // Label styling for current versus earlier selected symbol...
+    let ikonLabel = document.getElementById('ikonLabel-'+symbolName);
     ikonLabel.style.color = "white";
     ikonLabel.style.backgroundColor = "black";
-
-    if(prevIDDrawn !== "" && prevIDDrawn !== id) {
+    if(prevIDDrawn !== "" && prevIDDrawn !== symbolName) {
 	let prevIkonLabel = document.getElementById('ikonLabel-'+prevIDDrawn);
 	if(prevIkonLabel !== undefined) {
 	    prevIkonLabel.style.color = "black";
 	    prevIkonLabel.style.backgroundColor = "white";
 	}
     }
+    prevIDDrawn = symbolName;
 
-    prevIDDrawn = id;
-
+    let svgDraw = document.getElementById('bViews-symbolDisplayed');
+    let symbol = document.getElementById(symbolName);
+    let viewB = symbol.getAttribute('viewBox');
     svgDraw.setAttribute('viewBox', viewB);
     viewBL = viewB.split(" ");
     svgDraw.setAttribute('width', viewBL[2]+"px");
     svgDraw.setAttribute('height', viewBL[3]+"px");
     svgDraw.innerHTML = symbol.innerHTML;
-    editTarget = drawArea.innerHTML;
-    getSrcForImage();
+    editTarget = document.getElementById('targetArea').innerHTML;
+    getSrcForSymbol(symbol);
     setResizer();
+}
+
+/**
+ * Only called from within the code ...
+ * Copies required svg code from definition to the source area for editing ...
+ * On Save all parameters to be saved back to the symbol definition which is canonical location for any symbol definition
+ * @param {svg symbol} symbol - An svg symbol with required code within
+ */
+function getSrcForSymbol(symbol){
+    let src = document.getElementById('srcArea');
+    src.innerText = symbol.outerHTML;
+    src.style.display="inline";
+    src.contentEditable="true";
+    src.style.cursor = "auto";
+    editSrc = src.innerHTML;
 }
 
 var endAlert = false;
@@ -551,27 +570,156 @@ function getPreviousSymbol(){
     resizer.style.cursor = "ew-resize";
 }
 
-function clearDrawingArea(){
-    let svgDraw = document.getElementById('targetArea');
-    svgDraw.innerHTML = "<svg id=\"bitwiseViews-symbolDisplayed\"></svg>"; //reset drawing area ...
-}
-
-function getSrcForImage(){
-    let svgDraw = document.getElementById('targetArea');
-    let svg = svgDraw.innerHTML;
-    let src = document.getElementById('srcArea');
-    src.innerText = svg;
-    src.style.display="inline";
-    // src.contentEditable="true";
-    src.style.cursor = "auto";
-    editSrc = src.innerHTML;
-}
-
-function drawImageForSrc(){
+function validateAndGetSrcElement(){
     let svgSrc = document.getElementById('srcArea');
     let src = svgSrc.innerText;
-    let svg = document.getElementById('targetArea');
-    svg.innerHTML = src;
+    let srcElem = parser.parseFromString(src,"image/svg+xml");
+    if(srcElem === undefined || srcElem === null) {
+        alert('Unable to parse the provided source!');
+        return null;
+    }
+    if(srcElem.childElementCount!== 1){
+        alert('Invalid source ! Must contain exactly one Symbol Node');
+        return null;
+    }
+
+    let srcSymbol = srcElem.childNodes[0]
+    if(srcSymbol.nodeName !== 'symbol'){
+        alert('Outermost tag must be of symbol type');
+        return null;
+    }
+
+    if(srcSymbol.id == undefined || srcSymbol.id === null) {
+        alert('symbol must have an id attribute!');
+        return null;
+    }
+
+    if(srcSymbol.getAttribute('viewBox') === null || srcSymbol.getAttribute('viewBox').split(' ').length !== 4) {
+        alert('viewbox attribute must be set with appropriate values!');
+        return null;
+    }
+
+    return srcSymbol;
+}
+
+// May need to clear some of the text elements to get a better node for displaying...
+function drawImageForSrc(){
+    let srcSymbol = validateAndGetSrcElement();
+    if(srcSymbol === null)
+        return;
+    resetDrawArea();
+    let svg = document.getElementById('bViews-symbolDisplayed');
+    svg.innerHTML = srcSymbol.innerHTML;
+    let viewB = srcSymbol.getAttribute('viewBox');
+    svg.setAttribute('viewBox', viewB);
+    let viewBL = viewB.split(' ');
+    svg.setAttribute('width', viewBL[2]+"px");
+    svg.setAttribute('height', viewBL[3]+"px");
+}
+
+// For saving the current source area symbol into symbol definition (in target list as well as injected definition)
+/**
+ * Complete control given to the user by giving preference to whatever is entered in the source.
+ * Checks first performed with validateAndGetSrcElement to catch any errors
+ */
+function saveSymbol(){
+    let srcSymbol = validateAndGetSrcElement();
+    if(srcSymbol == null)
+        return;
+
+    let symbolName = srcSymbol.id;
+    let srcElem = document.getElementById('srcArea');
+    let newDef = srcSymbol.outerHTML;
+    let targetIdx = targetSymbols.indexOf(symbolName);
+    let iconL = document.getElementById('iconList');
+    let ikonDiv = svgForSymbolInIconList(symbolName);
+    let svgL = document.body.childNodes[0];
+    /**
+     * if srcSymbol.id in targetSymbols ... definition needs to be overwritten
+     */
+    if(targetSymbols.includes(symbolName)){
+	let symbolDef = document.getElementById(symbolName);
+	if(symbolDef === null){
+	    alert('symbol ('+symbolName+') in list but not defined !');
+	    return;
+	}
+
+	resetSrcArea();
+	resetDrawArea();
+	if(currIdx === targetIdx) { // we are modifying the selected symbol ... so do the modification
+	    symbolDef.outerHTML = newDef;
+	} else {
+	    alert('Symbol ('+symbolName+') Already Defined!\nClick Add/Modify to modify.');
+	    prevIDDrawn = symbolName;
+	    currIdx = targetIdx;
+	}
+    } else { // symbolName not in targetSymbols ...
+	let existingDef = document.getElementById(symbolName);
+	if(existingDef === undefined || existingDef === null) { // new symbol needs to be added to target symbol list
+	    //TODO: a) add/inject new definition into document.body.childNodes[0]
+	    //      b) add into IconL and to targetSymbols...
+	    if(currIdx < 0 || currIdx >= targetSymbols.length){// place new symbol at first in definition, iconL
+		let clonedNode =svgL.childNodes[0].cloneNode(); // at least one element must be there ...
+		clonedNode.outerHTML = newDef;
+		svgL.insertBefore(clonedNode, svgL.childNodes[0]);
+		iconL.innerHTML = ikonDiv + iconL.innerHTML;
+		currIdx = 0;
+		symbolDefs[symbolName] = 0;
+		symbolNames = [];
+		for(let i = 0; i < svgL.childNodes.length; i++){
+		    symbolNames.push(svgL.childNodes[i].id);
+		    symbolDefs[svgL.childNodes[i].id] = i;
+		}
+	    } else {
+		if(prevIDDrawn === "" || prevIDDrawn === symbolName) {
+		    alert('prev ID not defined or is current symbol!');
+		    return;
+		}
+		currentNode = svgL.childNodes[symbolDefs[prevIDDrawn]];
+		let clonedNode = currentNode.cloneNode(); // at least one element must be there ...
+		svgL.insertBefore(clonedNode, currentNode);
+		clonedNode.outerHTML = newDef;
+		let currIkon = document.getElementById('ikon-'+prevIDDrawn);
+		let newIkon = currIkon.cloneNode();
+		iconL.insertBefore(newIkon, currIkon);
+		newIkon.outerHTML = ikonDiv;
+		// Being lazy here ... recomputing symbolDefs, symbolNames...
+		targetSymbols.splice(currIdx, 0, symbolName);
+		targetSymbolDefs.splice(currIdx, 0, newDef);
+		symbolNames = [];
+		for(let i = 0; i < svgL.childNodes.length; i++){
+		    symbolNames.push(svgL.childNodes[i].id);
+		    symbolDefs[svgL.childNodes[i].id] = i;
+		}
+	    }
+	} else { // defined earlier but not selected in target symbol list
+	    // treated as modifying an existing definition ... so first load and show ..
+	    alert('Symbol Definition  for ('+symbolName+') Exists!\nClick Add/Modify to modify.');
+	    iconL.innerHTML = iconL.innerHTML + ikonDiv;
+	    currIdx = targetSymbols.length;
+	    // TODO: sync change in targetSymbols with Import View (src area)
+	    targetSymbols.push(symbolName);
+	}
+    }
+
+    // Highlighting ...
+    if(prevIDDrawn !== "" && prevIDDrawn !== symbolName) {
+	let prevIkonLabel = document.getElementById('ikonLabel-'+prevIDDrawn);
+	if(prevIkonLabel !== undefined) {
+	    prevIkonLabel.style.color = "black";
+	    prevIkonLabel.style.backgroundColor = "white";
+	}
+    }
+    let currIkonLabel = document.getElementById('ikonLabel-'+symbolName);
+    currIkonLabel.style.backgroundColor = "black";
+    currIkonLabel.style.color = "white";
+    selectedSymbols[symbolName] = true;
+    // reset contents of srcArea...
+    srcElem.innerText = srcSymbol.outerHTML;
+    // show the diagram result
+    drawImageForSrc();
+    let svgEl = document.getElementById('ikon-svg-'+symbolName);
+    svgEl.scrollIntoView({behavior: "smooth", block: "end", inline: "nearest"});
 }
 
 function iconListVisibility(){
@@ -590,48 +738,14 @@ function iconListVisibility(){
 
 function svgForSymbolInIconList(symbolName){
     let targetSymbol ="";
-    // symbolName = svgSymbols[symbolIdx].id;
-
     targetSymbol += "<div id=\"ikon-"+symbolName+"\" style=\"display: flex; flex-direction:column; \"> "+
-	"<div id=\"ikon-svg-"+symbolName+"\" onclick = \"drawElem('"+symbolName+"');\" style=\"\">"+
+	"<div id=\"ikon-svg-"+symbolName+"\" onclick = \"drawSymbol('"+symbolName+"');\" style=\"\">"+
 	"<svg style=\"border:1px solid green; display:inline;\"><use xlink:href='#"+symbolName+"' /></svg>"+
 	"</div>"+
-	"<label style=\"text-align : center;\" onclick=\"modifyLabel('"+symbolName+"');\" "+
+	"<label style=\"text-align : center;\" onclick=\"drawSymbol('"+symbolName+"');\" "  + //" onclick=\"modifyLabel('"+symbolName+"');\" "+
 	"id=\"ikonLabel-"+symbolName+"\">"+ symbolName +"</label>"; // class=\"items-center justify-center\"
     targetSymbol += "</div>";
     return targetSymbol;
-}
-
-function duplicateCurrentlySelected(){
-    if(currIdx < 0 || currIdx >= targetSymbols.length){
-	alert('No Symbol currently Selected !');
-	return;
-    }
-    let currSymbolName = targetSymbols[currIdx];
-    if(Object.keys(symbolDefs).includes(currSymbolName+'-copy')){
-	alert('copy of '+currSymbolName+' already exists. Rename existing copy first');
-	return;
-    }
-    let currSvgDefs = document.body.childNodes[0];
-    let svgIdx = symbolDefs[targetSymbols[currIdx]];
-    let currSymbolDef  = currSvgDefs.childNodes[svgIdx];
-    let clonedNode = currSymbolDef.cloneNode();
-    clonedNode.id = currSymbolName+'-copy';
-    clonedNode.innerHTML = currSvgDefs.childNodes[svgIdx].innerHTML;
-    // First, definition ...
-    currSvgDefs.insertBefore(clonedNode, currSymbolDef);
-    svgSymbols.splice(svgIdx, 0, clonedNode);
-    symbolDefs[clonedNode.id] = svgIdx;
-    // Then, for current view in iconList
-    let elem = document.getElementById('ikon-'+currSymbolName);
-    let elemClone = elem.cloneNode();
-    elemClone.id = clonedNode.id;
-    elemClone.innerHTML = svgForSymbolInIconList(svgSymbols[svgIdx].id);
-    elem.parentElement.insertBefore(elemClone, elem);
-
-    targetSymbols.splice(currIdx, 0, elemClone.id);
-    targetSymbolDefs.splice(currIdx, 0, elemClone);
-    targetSymbolIds[clonedNode.id] = currIdx;
 }
 
 function reLabel(symbolName, newName){
@@ -751,15 +865,3 @@ function setResizer(){
     resizer.style.cursor = "ew-resize";
 }
 
-// function saveSymbol(){
-//     if(currIdx < 0){
-// 	alert('No Current Symbol !');
-// 	return;
-//     }
-
-//     let currSymbol = targetSymbols[currIdx];
-//     let src = document.getElementById('srcArea');
-//     let result = parser.parseFromString(src.innerText, "text/xml");
-//     document.getElementById(currSymbol).innerHTML =     result.childNodes[0].innerHTML;
-//     svgSymbols[currIdx].childNodes =     result.childNodes[0].childNodes;
-// }
