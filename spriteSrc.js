@@ -22,6 +22,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+/*
+Acknowledgements
+
+- resizerFunction from https://github.com/Azarlak/EvoCiv
+
+The MIT License (MIT)
+
+Copyright (c) 2016 Andrej Hristoliubov <anhr@mail.ru>
+*/
 var svgSymbols = [];
 var symbolNames = [];
 var selectedSymbols = {};
@@ -93,7 +102,6 @@ function processResult(xmlhttp) {
     purgeNonSymbols();
 }
 
-
 function getSvgElementFromContents(contents){
     let i=0;
     while(contents.childNodes[i].nodeName !== "svg" && i < contents.childNodes.length)    i++;
@@ -121,7 +129,6 @@ function ikonizer(){
 /**
  * Code related to Importing a Source file and selecting symbols as well as exporting target symbols...
  */
-
  function setImportView() {
     let iconL = document.getElementById('iconList');
     let viewerEditor = document.getElementById('viewerEditor');
@@ -773,47 +780,6 @@ function svgForSymbolInIconList(symbolName){
     return targetSymbol;
 }
 
-function reLabel(symbolName, newName){
-    let targetIdx = targetSymbolIds[symbolName];
-    targetSymbols[targetIdx] = newName;
-    targetSymbolIds[newName] = targetSymbolIds[symbolName];  // Change object targetSymbolIds
-    symbolIdx = symbolDefs[symbolName];
-    symbolDefs[newName] = symbolDefs[symbolName]; // this is also an object
-    symbolNames[symbolIdx] = newName;
-    svgSymbols[symbolIdx].id = newName;
-    // svg element for sprites definition from src ...
-    currentSpriteDefs = document.body.childNodes[0];
-    currentSpriteDefs.childNodes[symbolIdx].id = newName;
-    let elem1 = document.getElementById('ikon-'+symbolName);
-    elem1.innerHTML = svgForSymbolInIconList(svgSymbols[symbolIdx].id);
-    if(prevIDDrawn === symbolName){
-	prevIDDrawn = newName;
-	let elem = document.getElementById('ikonLabel-'+newName);
-	elem.style.color = "white";
-	elem.style.backgroundColor = "black";
-    }
-    delete symbolDefs[symbolName];
-//    t.childNodes[0].childNodes[0].attributes['xlink:href']='#'+newName;
-}
-
-var labelEdit=false;
-function modifyLabel(symbolName){
-    targetId = targetSymbolIds[symbolName];
-    let currSymbolLabel = document.getElementById('ikonLabel-'+symbolName);
-    let newLabel = window.prompt('Enter new label ', symbolName);
-    if (newLabel === "" || newLabel === symbolName || newLabel === undefined || newLabel === null) // need to check input here ...
-	return;
-
-    if(Object.keys(symbolDefs).includes(newLabel)) {
-	    alert('Label : \''+newLabel+'\' already defined in loaded source!');
-//	    currSymbolLabel.contentEditable = true;
-	    return;
-    }
-    reLabel(symbolName, newLabel);
-//    else	currSymbolLabel.contentEditable = true;
-    console.log('modifying label for '+symbolName);
-}
-
 /**
 resizerFunction from https://github.com/Azarlak/EvoCiv
 
@@ -889,4 +855,3 @@ function setResizer(){
     let resizer = document.getElementById('dragMe');
     resizer.style.cursor = "ew-resize";
 }
-

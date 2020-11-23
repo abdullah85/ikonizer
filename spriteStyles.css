@@ -120,7 +120,6 @@ SOFTWARE.
     display: inline-block;
 }
 
-
 .label1{
     background-color: #ffffff;
     border: none;
@@ -176,4 +175,51 @@ SOFTWARE.
 
 div:focus {
     outline: none;
+}
+
+pre {
+	width: 100%;
+	padding: 0;
+	margin: 0;
+	overflow: auto;
+	overflow-y: hidden;
+	font-size: 12px;
+	line-height: 20px;
+	background: #efefef;
+	border: 1px solid #777;
+}
+
+pre code {
+	padding: 10px;
+	color: #333;
+}
+
+.executed{
+    font-weight:bold;
+}
+
+.toExec{
+    font-weight:normal;
+    color:gray;
+}
+
+
+.buttonTracer{
+    background-color: #5555AA;
+    border: none;
+    border-radius: 12px;
+    color: white;
+    padding: 15px 32px;
+    text-align: center;
+    text-decoration: none;
+    font-size: 16px;
+    display: inline-block;
+}
+
+/* https://tobiasahlin.com/blog/flexbox-break-to-new-row/ */
+/* Inserting this collapsed row between two flex items will make
+ * the flex item that comes after it break to a new row */
+.break {
+  flex-basis: 100%;
+  height: 3px;
 }
