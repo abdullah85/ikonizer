@@ -80,7 +80,7 @@ function traceSymbol(){
     /*
      * First objective is to get a canonical representation for data as a list of commands (with parameters)
      */
-    let re = commands.reduce( (expr, cmd) => expr === "" ? cmd : expr+"|" + cmd, "");
+    let re = commands.reduce( (expr, cmd) => expr === "" ? cmd : expr + "|" + cmd, "");
     let commandExpr = new RegExp(re, 'g');
     let currIdx = data.search(commandExpr);
     let offset = data.slice(currIdx+1).search(commandExpr);
@@ -99,7 +99,7 @@ function traceSymbol(){
 	if(operation === 'Z' || operation === 'z')
 	    paramsSplit = [];
 	else // https://stackoverflow.com/a/12721958/10645311 ... TODO: figure out how match+global works
-	    paramsSplit = params.match(/^\d+|[-\s]\d+(\.\d+)?/g);
+	    paramsSplit = params.match(/^\d*(\.\d+)?|[-,\s]\s*\d*(\.\d+)?/g);
 	paramsVal = paramsSplit.map(val=>parseFloat(val));
 	paramL.push(paramsVal);
 	let currCmd = operation + paramsVal.reduce((acc,elem)=>(acc+" "+elem), "");
@@ -118,13 +118,11 @@ function traceSymbol(){
 
     codeDisplay(lineNo);
     let targetArea = document.getElementById('targetArea');
-    let trHdr = "<div style=\"display: block\">&nbsp;&nbsp;";
-    let trFtr = "</div>";
-    let trBody = getTracerButtonSrc("tracerPrev","<<");
-    trBody += getTracerButtonSrc("tracerPause","||");
-    trBody += getTracerButtonSrc("tracerNext",">>");
-    targetArea.innerHTML += "<div class=\"break\"></div>"+ trHdr + trBody + trFtr;
-}
+    ["tracerPrev", "tracerPlay", "tracerNext"].forEach(function(buttonID){
+	let elem = document.getElementById(buttonID);
+	elem.style.backgroundColor = "#5555AA";
+    });
+ }
 
 function getNextCoords(prevCoords, operation, params){
     prevX = prevCoords['x'];
@@ -144,6 +142,16 @@ function getNextCoords(prevCoords, operation, params){
 	    initY = prevY + params[1];
 	}
 	return {'x':(prevX + params[0]), 'y':(prevY + params[1])};
+    }
+    if(operation.match(/h|v/i)){
+	if(operation == "h")
+	    return {'x':(prevX + params[0]), 'y':(prevY)};
+	if(operation == "H")
+	    return {'x':(params[0]), 'y':(prevY)};
+	if(operation == "v")
+	    return {'x':(prevX), 'y':(prevY + params[0])};
+	if(operation == "V")
+	    return {'x':(params[0]), 'y':(params[0])};
     }
     if(operation.match(/c|C/)){
 	if(operation == "c")
@@ -170,21 +178,33 @@ function getInfoFor(operation, params, prevCoords, nextCoords){
 	cmds += "stroke-dasharray=\"5, 5\" x1=\""+prevX+"\" y1=\""+prevY+"\" x2=\""+nextX+"\" y2=\""+nextY+"\"></line>\n";	
 	cmds += "<circle cx=\""+nextX+"\" cy=\""+nextY+"\" r=\"5\" fill=\"green\"/>\n";
     }
-    if(operation.match(/m/i)) { // for move show previous, next coords
+    if(operation.match(/z|m|l/i)) { // for closepath, move, line show previous, next coords
 	cmds += "<circle cx=\""+prevX+"\" cy=\""+prevY+"\" r=\"5\" fill=\"red\"/>\n";
-	cmds += "<line style =\"stroke:rgb(155, 155, 155); stroke-width: 2;\" ";
-	cmds += "stroke-dasharray=\"5, 5\" x1=\""+prevX+"\" y1=\""+prevY+"\" x2=\""+nextX+"\" y2=\""+nextY+"\"></line>\n";
 	cmds += "<circle cx=\""+nextX+"\" cy=\""+nextY+"\" r=\"5\" fill=\"green\"/>\n";
+	if(!operation.match(/l/i))
+	    cmds += ("<line style =\"stroke:rgb(155, 155, 155); stroke-width: 2;\" " +
+		     "stroke-dasharray=\"5, 5\" x1=\""+prevX+"\" y1=\""+prevY+"\" x2=\""+nextX+"\" y2=\""+nextY+"\"></line>\n");
+    }
+    if(operation.match(/h|v/i)){
+	cmds += "<circle cx=\""+prevX+"\" cy=\""+prevY+"\" r=\"5\" fill=\"red\"/>\n";
+	cmds += "<circle cx=\""+nextX+"\" cy=\""+nextY+"\" r=\"5\" fill=\"green\"/>\n";
+	cmds += "stroke-dasharray=\"5, 5\" x1=\""+prevX+"\" y1=\""+prevY+"\" x2=\""+nextX+"\" y2=\""+nextY+"\"></line>\n";
     }
     if(operation.match(/c/i)) { // for cubic curve, show previous, next points, with control points (in gray)
+	let point1X = params[0], point1Y = params[1];
+	let point2X = params[2], point2Y = params[3];
+	if(operation === "c") {
+	    point1X += prevCoords['x']; point1Y += prevCoords['y'];
+	    point2X += prevCoords['x']; point2Y += prevCoords['y'];
+	}
 	cmds += "<circle cx=\""+prevX+"\" cy=\""+prevY+"\" r=\"5\" fill=\"red\"/>\n";	
-	cmds += "<circle cx=\""+params[0]+"\" cy=\""+params[1]+"\" r=\"5\" fill=\"gray\"/>\n";
+	cmds += "<circle cx=\"" +point1X+ "\" cy=\"" +point1Y+ "\" r=\"5\" fill=\"gray\"/>\n";
 	cmds += "<line style =\"stroke:rgb(155, 155, 155); stroke-width: 2;\" ";
-	cmds += "stroke-dasharray=\"5, 5\" x1=\""+prevX+"\" y1=\""+prevY+"\" x2=\""+params[0]+"\" y2=\""+params[1]+"\"></line>\n";	
-	cmds += "<circle cx=\""+params[2]+"\" cy=\""+params[3]+"\" r=\"5\" fill=\"gray\"/>\n";
+	cmds += "stroke-dasharray=\"5, 5\" x1=\""+prevX+"\" y1=\""+prevY+"\" x2=\""+point1X+"\" y2=\""+point1Y+"\"></line>\n";
+	cmds += "<circle cx=\"" +point2X+ "\" cy=\"" +point2Y+ "\" r=\"5\" fill=\"gray\"/>\n";
 	cmds += "<circle cx=\""+nextX+"\" cy=\""+nextY+"\" r=\"5\" fill=\"green\"/>\n";
 	cmds += "<line style =\"stroke:rgb(155, 155, 155); stroke-width: 2;\" ";
-	cmds += "stroke-dasharray=\"5, 5\" x1=\""+params[2]+"\" y1=\""+params[3]+"\" x2=\""+nextX+"\" y2=\""+nextY+"\"></line>\n";	
+	cmds += "stroke-dasharray=\"5, 5\" x1=\""+point2X+"\" y1=\""+point2Y+"\" x2=\""+nextX+"\" y2=\""+nextY+"\"></line>\n";
     }
     if(operation.match(/z/i)) {
 	
@@ -203,6 +223,7 @@ function codeDisplay(idx){
     if(idx >= commandSeqIdL.length)
 	idx = commandSeqIdL.length-1;
     let executedCode = getExecutedCode(commandSeq, commandSeqIdL, idx);
+    executedCode = executedCode.trim();
     let toExecute = getCodeToExecute(commandSeq, commandSeqIdL, idx);
     if(idx<0) {
 	executedCode = "";
@@ -212,7 +233,6 @@ function codeDisplay(idx){
     srcElem.innerHTML += "<pre class=\"toExec\">" + toExecute + "</pre>";
     // Having set the source code for display, we now set what is to be shown ...
     let targetCode = "<path d=\"" + executedCode + "\"></path>" + infoL[idx];
-    
     let targetElem = document.getElementById('bViews-symbolDisplayed');
     targetElem.innerHTML = targetCode;
 }

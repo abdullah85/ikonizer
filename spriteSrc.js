@@ -71,7 +71,8 @@ const parser = new DOMParser();
     xmlhttp.send(null);
 
     reader.onload=function(){
-	console.log(reader.result);
+    console.log(reader.result);
+    document.getElementById('buttonWrapper').style.overflowX = "scroll";
     }
 
     srcSelector = document.getElementById('srcSelector');
@@ -129,30 +130,36 @@ function ikonizer(){
 /**
  * Code related to Importing a Source file and selecting symbols as well as exporting target symbols...
  */
- function setImportView() {
-    let iconL = document.getElementById('iconList');
-    let viewerEditor = document.getElementById('viewerEditor');
+function setImportView() {
+     let viewerEditor = document.getElementById('viewerEditor');
+     let srcContainer = document.getElementById('srcContainer');    
+     let iconL = document.getElementById('iconList');
 
-    // Remove Preview area for Import View...
-    iconL.style.display = "none";
-    viewerEditor.style.height = "91%";
+     // Remove Preview area for Import View...
+     iconL.style.display = "none";
+     viewerEditor.style.height = "597px";
 
     //Button set to hide
-    let bHide = document.getElementById('editButtons');
-    //Button set to display
-    let bDispl = document.getElementById('importButtons');
-    bHide.style.display="none";
-    bDispl.style.display="";
+    document.getElementById('subButtonsWrapper').style.display = "none";    
+     let bHide1 = document.getElementById('editButtons');
+     let bHide2 = document.getElementById('srcEditButtons');
+     let bHide3 = document.getElementById('traceButtons');
+     bHide1.style.display="none";
+     bHide2.style.display="none";
+     bHide3.style.display="none";
+     //Button set to display
+     let bDispl = document.getElementById('importButtons');
+     bDispl.style.display="";
 
-    let src = document.getElementById('srcArea');
-    let target = document.getElementById('targetArea');
-    src.style.contentEditable = false;
-    src.style.display="flex";
-
-    computeImportSrc();
-    computeImportTarget();
-    src.innerHTML = importSrc;
-    target.innerHTML = importTarget;
+     let src = document.getElementById('srcArea');
+     let target = document.getElementById('targetArea');
+     computeImportSrc();
+     computeImportTarget();
+     src.innerHTML = importSrc;
+     src.style.contentEditable = false;
+     src.style.display="flex";    
+     target.innerHTML = importTarget;
+     srcContainer.className = "w-2\/3";
 }
 
 // Code related to input/output of svg sprites ...
@@ -264,6 +271,8 @@ function downloadTargetAsSvgSprite(){
 var firstTimeLoad = true;
 function loadSymbols(){
     let target = document.getElementById('targetArea');
+    let srcArea = document.getElementById('srcArea');
+
     importTarget = target.innerHTML;
     let s = document.getElementById('start');
     let nSymb = document.getElementById('nSymbols');
@@ -311,18 +320,24 @@ function loadSymbols(){
 	alert('Symbols not initialized !!!');
     importSrc = "";
 
-    //    srcContainer.style.flexDirection = "row";
-    target.style.display = "flex";
+    srcContainer.style.display="flex";
+    srcContainer.style.flexDirection  = "row";
+    srcContainer.style.flexWrap = "wrap";
+    srcContainer.style.overflow = "scroll";
     targetContainer.style.display = "flex";
     targetContainer.style.flexDirection = "row";
+    targetContainer.style.flexWrap = "wrap";
+    targetContainer.style.overflow = "scroll";
+    target.style.display = "flex";
     target.style.flexDirection = "row";
     target.style.flexWrap = "wrap";
-    targetContainer.style.flexWrap = "wrap";
-    targetContainer.style.overflowX = "scroll";
-    targetContainer.style.overflowY = "scroll";
+    target.style.overflow = "";
     src.style.display = "flex";
     src.style.flexDirection = "row";
     src.style.flexWrap = "wrap";
+    src.style.overflow = "";
+    src.style.widthh="579px";
+
     for(let i = importStart; i <= importEnd; i++)
 	importSrc += getSVGForSrcImport(symbolNames[i])+"\n";
     src.innerHTML =  importSrc;
@@ -457,7 +472,10 @@ function selectAllSymbols(){
  * Edit mode related functionality ...
  */
 function setEditView() {
+    let viewerEditor = document.getElementById('viewerEditor');
+    let srcContainer = document.getElementById('srcContainer');    
     let iconL = document.getElementById('iconList');
+
     iconListSrc = "";
     // Let's rebuild the icons
     for(let i=0; i<targetSymbols.length; i++) {
@@ -465,18 +483,24 @@ function setEditView() {
 	iconListSrc += svgForSymbolInIconList(currSymbol);
     }
     iconL.innerHTML = iconListSrc;
-    let viewerEditor = document.getElementById('viewerEditor');
 
-    // Default is to show Preview Area for Edit View...
-    iconL.style.display = "flex";
-    viewerEditor.style.height = "65%";
+    // Default is to hide Preview Area for Edit View...
+    iconL.style.display = "none";
+    viewerEditor.style.height = "71%";
+    srcContainer.className = "w-1\/3";    
 
     //Button set to hide
     let bHide = document.getElementById('importButtons');
     //Button set to display
-    let bDispl = document.getElementById('editButtons');
+    document.getElementById('subButtonsWrapper').style.display = "flex";
+    let bDispl1 = document.getElementById('editButtons');
+    let bDispl2 = document.getElementById('srcEditButtons');    
+    let bDispl3 = document.getElementById('traceButtons');
     bHide.style.display="none";
-    bDispl.style.display="";
+    bDispl1.style.display="flex";
+    bDispl2.style.display="flex";
+    bDispl2.className="w-1\/3";
+    bDispl3.style.display="flex";    
 
     let src = document.getElementById('srcArea');
     let target = document.getElementById('targetArea');
@@ -503,6 +527,9 @@ function resetDrawArea(){
 function resetSrcArea(){
     let srcArea = document.getElementById('srcArea');
     srcArea.innerText = "";
+}
+
+function beautify(){
 }
 
 function drawSymbol(symbolName){
@@ -764,7 +791,7 @@ function iconListVisibility(){
 	viewerEditor.style.height = "65%";
     } else {
 	iconL.style.display = "none";
-	viewerEditor.style.height = "91%";
+	viewerEditor.style.height = "97%";
     }
 }
 
@@ -792,7 +819,10 @@ var resizerFunction = function() {
     // Query the element
     let resizer = document.getElementById('dragMe');
     let leftSide = resizer.previousElementSibling;
+    let leftButtons = document.getElementById('srcEditButtons');
     let rightSide = resizer.nextElementSibling;
+    let rightButtons = document.getElementById('traceButtons');
+    let buttonSep = document.getElementById('buttonSep');
 
     // The current position of mouse
     let x = 0;
@@ -806,6 +836,7 @@ var resizerFunction = function() {
         x = e.clientX;
         y = e.clientY;
         leftWidth = leftSide.getBoundingClientRect().width;
+	leftButtons.style.width = leftWidth;
 
         // Attach the listeners to `document`
         document.addEventListener('mousemove', mouseMoveHandler);
@@ -819,6 +850,7 @@ var resizerFunction = function() {
 
         const newLeftWidth = (leftWidth + dx) * 100 / resizer.parentNode.getBoundingClientRect().width;
         leftSide.style.width = `${newLeftWidth}%`;
+	leftButtons.style.width = leftSide.style.width;
 
         resizer.style.cursor = 'col-resize';
         document.body.style.cursor = 'col-resize';
@@ -848,6 +880,7 @@ var resizerFunction = function() {
 
 	 // Attach the handler
     resizer.addEventListener('mousedown', mouseDownHandler);
+    buttonSep.addEventListener('mousedown', mouseDownHandler);
 };
 
 function setResizer(){

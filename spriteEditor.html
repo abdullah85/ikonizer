@@ -34,7 +34,7 @@ SOFTWARE.
 
     <div id="iconList" ></div>
 
-    <div class="buttonWrapper" style="display:flex">
+    <div class="buttonWrapper" style="display:flex; padding : 13px 1px;">
       <span>&nbsp;</span>
       <button class="button2" onclick="ikonizer()">Ikonizer</button>
       <span>&nbsp;&nbsp;&nbsp;</span>
@@ -42,73 +42,61 @@ SOFTWARE.
       <span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
 
       <div id="importButtons">
-	<label class="label1" for="start">Start At:</label>
+	<label class="label1"  for="start">Start At:</label>
 	<input class="input1" type="number" min="0"  id="start" value="0">
 	<label class="label1" for="end"># Symbols:</label>
-	<input class="input1" type="number" min="1"  id="nSymbols" value="150">
-	<button class="button2" onclick="loadSymbols();">Load Symbols</button>
+	<input class="input1" type="number" min="1"  id="nSymbols" value="150">&nbsp;
+	<button class="button2" onclick="loadSymbols();">Load Symbols</button>&nbsp;
 	<button class="button2" onclick="selectAllSymbols();">Select All</button>
 	<span>&nbsp;&nbsp;&nbsp;</span>
 	<input type="file" id="srcSelector" class="button2" accept=".svg" onchange="readFile(this)"/>
+	&nbsp;
 	<button class="button2" onclick="traceMode();">Trace</button>
       </div>
-
+     
       <div id="editButtons" style="display:none">
-	<button class="button1" onclick="iconListVisibility()">Preview</button>
-	<button class="button1" onclick="getNextSymbol()">Next</button>
-	<button class="button1" onclick="getPreviousSymbol()">Previous</button>
+	<button class="button1" onclick="iconListVisibility()">Preview</button>&nbsp;
+	<button class="button1" onclick="getNextSymbol()">Next</button>&nbsp;
+	<button class="button1" onclick="getPreviousSymbol()">Previous</button>&nbsp;
 	<!--<button class="button1" onclick="resetDrawArea()">Clear Drawing Area</button>-->
-	<button class="button1" onclick="drawImageForSrc()">Draw Image</button>
+	<button class="button1" onclick="drawImageForSrc()">Draw Image</button>&nbsp;
 	<button class="button1" onclick="saveSymbol()">Add/Modify</button>
-	<button class="button1" onclick="traceSymbol()">Trace Path</button>
-	<button class="button1" onclick="traceSettings()">Settings</button>
       </div>
     </div>
+
 
     <div id="viewerEditorContainer">
+      <div id="subButtonsWrapper" class="flex flex-1" style="height:71px; display:none;flex-flow:row wrap; border:1.95px solid black; border-bottom:0.15px solid #0000aa;">
+	<div id="srcEditButtons" style="display:none; height:79px;" >
+	  &nbsp;<button id="TraceBeautify" class="buttonTracer" style="height:53px;" onclick="beautify()">Beautify</button>	  
+	</div>
+	<div id="buttonSep" class="resizer"></div>    
+	<div id="traceButtons" style="display:none; height:79px;" >
+	  &nbsp;<button id="TraceSettings" class="buttonTracer" style="height:53px;" onclick="traceSettings()">Settings</button>	    
+	  &nbsp;<button id="TracePath" class="buttonTracer" style="height:53px;" onclick="traceSymbol()">Trace Path</button>
+	  &nbsp;<button id="tracerPrev" class="button2" style="height:51px;" onclick="tracerPrev();">&#x1F830;</button>
+	  &nbsp;<button id="tracerPlay" class="button2" style="height:51px;" onclick="tracerPlay();"> &#9658;</button>
+	  &nbsp;<button id="tracerNext" class="button2" style="height:51px;" onclick="tracerNext();"> &#x1F832;</button>
+	</div>
+      </div>      
       <div  id="viewerEditor" class="w-full flex">
-	<div id="srcContainer" class="w-2/3" style="overflow-x:scroll">
-	  <div id="srcArea" style="width:975px; height:100%;" contenteditable="false"></div>
+	<div id="srcContainer" class="w-2/3 flex flex-1">	  
+	  <div id="srcArea"  contenteditable="false"></div>
 	</div>
 	<div id="dragMe" class="resizer"></div>
-	<div id="targetContainer" class="flex flex-1">
+	<div id="targetContainer" class="flex flex-1" >
 	  <div id="targetArea"></div>
 	</div>
-      </div>
+      </div>      
     </div>
 
-    <!--<div id="viewerEditorEditMode" style="display:none">
-      <div  id="viewerEditor" class="w-full flex">
-	<div id="srcContainer" class="w-2/3">
-	  <div id="srcArea" style="width:100%; height:100%" contenteditable="true"></div>
-	</div>
-	<div id="dragMe" class="resizer"></div>
-	<div id="targetContainer" class="flex flex-1">
-	  <div id="targetArea"><svg id="bViews-symbolDisplayed"></svg></div>
-	</div>
-      </div>
+    <div>
+      <br/>
+      <pre>	Support for viewing svg sprites, selecting, editing symbols and finally exporting modified sprite.</pre>
+      <br/>
     </div>
-    -->
-
     <script>
      document.addEventListener('DOMContentLoaded', resizerFunction);
-
-     // Geeks For Geeks ...
-     //     document.getElementById('srcSelector').addEventListener('change', function() {
-     //	 var fr = new FileReader();
-     //         fr.onload=function(){
-     //document.getElementById('output').textContent=fr.result;
-     //	     console.log(fr.result);
-     //         }
-     //	 fr.readAsText(this.files[0]);
-     //     });
     </script>
   </body>
 </html>
-
-<!--	<svg style="width:131; height:157"><use xlink:href="solid.svg#wifi"></use></svg> -->
-<!--	<svg style="width:131; height:157"><use xlink:href="solid.svg#wrench"></use></svg>-->
-<!--	<svg style="width:131; height:157"><use xlink:href="solid.svg#user"></use></svg> -->
-<!--	<svg style="width:131; height:157"><use xlink:href="solid.svg#university"></use></svg>-->
-<!--	<svg style="width:131; height:157"><use xlink:href="solid.svg#tshirt"></use></svg>-->
-
