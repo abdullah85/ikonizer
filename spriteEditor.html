@@ -24,10 +24,12 @@ SOFTWARE.
 <html>
   <head>
     <title>BitwiseViews SVG Sprite Editor</title>
+    <script src="CodeMirror-5.58.3/src/codemirror.js"></script>
+    <link rel="stylesheet" href="CodeMirror-5.58.3/lib/codemirror.css">
+    <script src="CodeMirror-5.58.3/mode/xml/xml.js"></script>
     <link rel="stylesheet" href="spriteStyles.css" >
     <script type="text/javascript" src="spriteSrc.js"></script>
     <script type="text/javascript" src="symbolTracer.js"></script>
-    <style></style>
   </head>
 
   <body onload="initializeAndImport();">
@@ -56,8 +58,8 @@ SOFTWARE.
      
       <div id="editButtons" style="display:none">
 	<button class="button1" onclick="iconListVisibility()">Preview</button>&nbsp;
-	<button class="button1" onclick="getNextSymbol()">Next</button>&nbsp;
 	<button class="button1" onclick="getPreviousSymbol()">Previous</button>&nbsp;
+	<button class="button1" onclick="getNextSymbol()">Next</button>&nbsp;
 	<!--<button class="button1" onclick="resetDrawArea()">Clear Drawing Area</button>-->
 	<button class="button1" onclick="drawImageForSrc()">Draw Image</button>&nbsp;
 	<button class="button1" onclick="saveSymbol()">Add/Modify</button>
@@ -66,26 +68,33 @@ SOFTWARE.
 
 
     <div id="viewerEditorContainer">
-      <div id="subButtonsWrapper" class="flex flex-1" style="height:71px; display:none;flex-flow:row wrap; border:1.95px solid black; border-bottom:0.15px solid #0000aa;">
-	<div id="srcEditButtons" style="display:none; height:79px;" >
-	  &nbsp;<button id="TraceBeautify" class="buttonTracer" style="height:53px;" onclick="beautify()">Beautify</button>	  
-	</div>
-	<div id="buttonSep" class="resizer"></div>    
-	<div id="traceButtons" style="display:none; height:79px;" >
-	  &nbsp;<button id="TraceSettings" class="buttonTracer" style="height:53px;" onclick="traceSettings()">Settings</button>	    
-	  &nbsp;<button id="TracePath" class="buttonTracer" style="height:53px;" onclick="traceSymbol()">Trace Path</button>
-	  &nbsp;<button id="tracerPrev" class="button2" style="height:51px;" onclick="tracerPrev();">&#x1F830;</button>
-	  &nbsp;<button id="tracerPlay" class="button2" style="height:51px;" onclick="tracerPlay();"> &#9658;</button>
-	  &nbsp;<button id="tracerNext" class="button2" style="height:51px;" onclick="tracerNext();"> &#x1F832;</button>
-	</div>
-      </div>      
       <div  id="viewerEditor" class="w-full flex">
-	<div id="srcContainer" class="w-2/3 flex flex-1">	  
+	<div id="srcContainer" class="w-2/3 flex flex-1">
+<!--	  <div id="srcAreaBreak" class="break"></div> -->
 	  <div id="srcArea"  contenteditable="false"></div>
 	</div>
 	<div id="dragMe" class="resizer"></div>
 	<div id="targetContainer" class="flex flex-1" >
+	  <div id="targetAreaBreak" class="break"></div>
 	  <div id="targetArea"></div>
+	</div>
+      </div>
+      <div id="subButtonsWrapper" class="w-full flex flex-1"
+	   style="height:71px; display:none;flex-flow:row wrap; border:1.95px solid black; border-bottom:0.15px solid #0000aa;">
+	<div id="srcEditButtons" style="display:flex; height:79px; overflow-x:scroll" >
+	  <div>
+	    &nbsp;<button id="TraceBeautify" class="buttonTracer" style="height:53px;" onclick="beautify()">Beautify</button>
+	  </div>
+	</div>
+	<div id="buttonSep" class="resizer"></div>
+	<div id="traceButtonsContainer" style="display:flex; height:79px; overflow:scroll; " >
+	  <div id="traceButtons">
+	  &nbsp;<button id="TraceSettings" class="buttonTracer" style="height:53px;" onclick="traceSettings()">Settings</button>
+	  &nbsp;<button id="TracePath" class="buttonTracer" style="height:53px;" onclick="traceSymbol()">Trace Path</button>
+	  &nbsp;<button id="tracerPrev" class="button2" style="height:51px;" onclick="tracerPrev();">&#x1F830;</button>
+	  &nbsp;<button id="tracerPlay" class="button2" style="height:51px;" onclick="tracerPlay();"> &#9658;</button>
+	    &nbsp;<button id="tracerNext" class="button2" style="height:51px;" onclick="tracerNext();"> &#x1F832;</button>
+	  </div>
 	</div>
       </div>      
     </div>

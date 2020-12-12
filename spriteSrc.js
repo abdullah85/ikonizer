@@ -30,6 +30,12 @@ Acknowledgements
 The MIT License (MIT)
 
 Copyright (c) 2016 Andrej Hristoliubov <anhr@mail.ru>
+
+- codemirror from https://codemirror.net/index.html
+
+MIT License
+
+Copyright (C) 2017 by Marijn Haverbeke <marijnh@gmail.com> and others
 */
 var svgSymbols = [];
 var symbolNames = [];
@@ -38,7 +44,7 @@ var symbolDefs={};
 var prevIDDrawn = "";
 var currIdx= -1;
 var mode="import"; // either import or edit ...
-var editSrc = "";
+var editSrc = null; // null indicates not switched to edit mode yet ...
 var editTarget = "<svg id=\"bViews-symbolDisplayed\"></svg>";
 var editWidth = "";
 var iconListSrc = "";
@@ -55,12 +61,19 @@ var targetSymbolDefs = [];
 var targetSymbolIds = {};
 const reader = new FileReader();
 const parser = new DOMParser();
+var srcEditor; // an instance of CodeMirror for editing.
 
- /**
-  * Initializing the first screen ...
-  */
- function initializeAndImport() {
+var cmOptions = {
+    lineNumbers: true,
+    tabSize: 2,
+    mode: 'xml'
+};
 
+/**
+ * Initializing the first screen ...
+ */
+function initializeAndImport() {
+    //myCodeMirror = CodeMirror(document.body);
     var xmlhttp = new XMLHttpRequest();
     xmlhttp.open("get", importFile, true);
     xmlhttp.onreadystatechange = function() {
@@ -71,8 +84,8 @@ const parser = new DOMParser();
     xmlhttp.send(null);
 
     reader.onload=function(){
-    console.log(reader.result);
-    document.getElementById('buttonWrapper').style.overflowX = "scroll";
+	console.log(reader.result);
+	document.getElementById('buttonWrapper').style.overflowX = "scroll";
     }
 
     srcSelector = document.getElementById('srcSelector');
@@ -135,31 +148,36 @@ function setImportView() {
      let srcContainer = document.getElementById('srcContainer');    
      let iconL = document.getElementById('iconList');
 
-     // Remove Preview area for Import View...
-     iconL.style.display = "none";
-     viewerEditor.style.height = "597px";
+    // Remove Preview area for Import View...
+    iconL.style.display = "none";
+    viewerEditor.style.height = "597px";
+    editWidth = srcContainer.style.width;
+    // set width for import
+    srcContainer.style.width = importWidth;
 
     //Button set to hide
     document.getElementById('subButtonsWrapper').style.display = "none";    
-     let bHide1 = document.getElementById('editButtons');
-     let bHide2 = document.getElementById('srcEditButtons');
-     let bHide3 = document.getElementById('traceButtons');
-     bHide1.style.display="none";
-     bHide2.style.display="none";
-     bHide3.style.display="none";
-     //Button set to display
-     let bDispl = document.getElementById('importButtons');
-     bDispl.style.display="";
+    let bHide1 = document.getElementById('editButtons');
+    let bHide2 = document.getElementById('srcEditButtons');
+    let bHide3 = document.getElementById('traceButtons');
+    bHide1.style.display="none";
+    bHide2.style.display="none";
+    bHide3.style.display="none";
+    //Button set to display
+    let bDispl = document.getElementById('importButtons');
+    bDispl.style.display="";
 
-     let src = document.getElementById('srcArea');
-     let target = document.getElementById('targetArea');
-     computeImportSrc();
-     computeImportTarget();
-     src.innerHTML = importSrc;
-     src.style.contentEditable = false;
-     src.style.display="flex";    
-     target.innerHTML = importTarget;
-     srcContainer.className = "w-2\/3";
+    let src = document.getElementById('srcArea');
+    let target = document.getElementById('targetArea');
+    if(editSrc !== null)
+	editSrc = srcEditor.doc.getValue();
+    computeImportSrc();
+    computeImportTarget();
+    src.innerHTML = importSrc;
+    src.style.contentEditable = false;
+    src.style.display="flex";
+    target.innerHTML = importTarget;
+    srcContainer.className = "w-2\/3";
 }
 
 // Code related to input/output of svg sprites ...
@@ -271,8 +289,6 @@ function downloadTargetAsSvgSprite(){
 var firstTimeLoad = true;
 function loadSymbols(){
     let target = document.getElementById('targetArea');
-    let srcArea = document.getElementById('srcArea');
-
     importTarget = target.innerHTML;
     let s = document.getElementById('start');
     let nSymb = document.getElementById('nSymbols');
@@ -403,7 +419,8 @@ function selectSymbol(symbolName){
 	    let currSymbol = targetSymbols[i];
 	    target.innerHTML += svgForTargetSymbol(currSymbol);
 	}
-	}
+    }
+
     targetSymbolIds[symbolName] = targetSymbols.length;
     targetSymbols.push(symbolName);
     let symbolDef = document.getElementById(symbolName);
@@ -487,7 +504,10 @@ function setEditView() {
     // Default is to hide Preview Area for Edit View...
     iconL.style.display = "none";
     viewerEditor.style.height = "71%";
-    srcContainer.className = "w-1\/3";    
+    srcContainer.className = "w-1\/3";
+    importWidth = srcContainer.style.width;
+    // set width for edit
+    srcContainer.style.width = editWidth;
 
     //Button set to hide
     let bHide = document.getElementById('importButtons');
@@ -514,8 +534,13 @@ function setEditView() {
 
     src.contentEditable = true;
     src.style.cursor = "auto";
-    src.style.display="inline";
-    src.innerHTML = editSrc;
+    src.style.display="";
+    src.innerHTML = "";
+    if(editSrc == null){
+        editSrc = "";
+    }
+    srcEditor = CodeMirror(src, cmOptions);    
+    srcEditor.doc.setValue(editSrc);
     target.innerHTML = editTarget;
 }
 
@@ -579,11 +604,8 @@ function drawSymbol(symbolName){
  */
 function getSrcForSymbol(symbol){
     let src = document.getElementById('srcArea');
-    src.innerText = symbol.outerHTML;
-    src.style.display="inline";
-    src.contentEditable="true";
-    src.style.cursor = "auto";
-    editSrc = src.innerHTML;
+    editSrc = symbol.outerHTML;
+    srcEditor.doc.setValue(editSrc);
 }
 
 var endAlert = false;
@@ -629,8 +651,8 @@ function getPreviousSymbol(){
 }
 
 function validateAndGetSrcElement(){
-    let svgSrc = document.getElementById('srcArea');
-    let src = svgSrc.innerText;
+//    let svgSrc = document.getElementById('srcArea');
+    let src = srcEditor.doc.getValue(); //svgSrc.innerText;
     let srcElem = parser.parseFromString(src,"image/svg+xml");
     if(srcElem === undefined || srcElem === null) {
         alert('Unable to parse the provided source!');
@@ -687,11 +709,12 @@ function saveSymbol(){
 
     let symbolName = srcSymbol.id;
     let srcElem = document.getElementById('srcArea');
-    let newDef = srcSymbol.outerHTML;
+    let newDef = srcEditor.doc.getValue();
     let targetIdx = targetSymbols.indexOf(symbolName);
     let iconL = document.getElementById('iconList');
     let ikonDiv = svgForSymbolInIconList(symbolName);
     let svgL = document.body.childNodes[0];
+
     /**
      * if srcSymbol.id in targetSymbols ... definition needs to be overwritten
      */
@@ -702,20 +725,24 @@ function saveSymbol(){
 	    return;
 	}
 
-	resetSrcArea();
+	// No need for any modification to the source area as we have the latest version of the code required already in the editor ...
+	// resetSrcArea();
 	resetDrawArea();
 	if(currIdx === targetIdx) { // we are modifying the selected symbol ... so do the modification
 	    symbolDef.outerHTML = newDef;
 	} else {
-	    alert('Symbol ('+symbolName+') Already Defined!\nClick Add/Modify to modify.');
+	    alert('Symbol ('+symbolName+') Already Defined!\nTo Overwrite, click Add/Modify again !');
 	    prevIDDrawn = symbolName;
 	    currIdx = targetIdx;
 	}
     } else { // symbolName not in targetSymbols ...
+	// Let's now check existing definitions that have been imported
 	let existingDef = document.getElementById(symbolName);
-	if(existingDef === undefined || existingDef === null) { // new symbol needs to be added to target symbol list
-	    //TODO: a) add/inject new definition into document.body.childNodes[0]
-	    //      b) add into IconL and to targetSymbols...
+	if(existingDef === undefined || existingDef === null) {
+	    // New symbol not in existing definitions imported and hence is a new symbol
+	    //    and needs to be added to target symbol list for which, we
+	    //    a) add/inject new definition into document.body.childNodes[0]
+	    //    b) add into IconL and to targetSymbols...
 	    if(currIdx < 0 || currIdx >= targetSymbols.length){// place new symbol at first in definition, iconL
 		let clonedNode =svgL.childNodes[0].cloneNode(); // at least one element must be there ...
 		clonedNode.outerHTML = newDef;
@@ -773,8 +800,8 @@ function saveSymbol(){
     currIkonLabel.style.backgroundColor = "black";
     currIkonLabel.style.color = "white";
     selectedSymbols[symbolName] = true;
-    // reset contents of srcArea...
-    srcElem.innerText = srcSymbol.outerHTML;
+    // No need to modify contents  in source area ...
+    // srcEditor.doc.setValue(srcSymbol.outerHTML); // srcElem.innerText = srcSymbol.outerHTML; Earlier version ...
     // show the diagram result
     drawImageForSrc();
     let svgEl = document.getElementById('ikon-svg-'+symbolName);
@@ -788,10 +815,10 @@ function iconListVisibility(){
 
     if(display === "none") {
 	iconL.style.display = "flex";
-	viewerEditor.style.height = "65%";
+	viewerEditor.style.height = "57%";
     } else {
 	iconL.style.display = "none";
-	viewerEditor.style.height = "97%";
+	viewerEditor.style.height = "71%";
     }
 }
 
