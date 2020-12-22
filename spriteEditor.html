@@ -29,7 +29,7 @@ SOFTWARE.
     <script src="cm/CodeMirror-5.58.3/mode/xml/xml.js"></script>
     <link rel="stylesheet" href="spriteStyles.css" >
     <script type="text/javascript" src="spriteSrc.js"></script>
-    <script type="text/javascript" src="symbolTracer.js"></script>
+<!--    <script type="text/javascript" src="symbolTracer.js"></script> -->
   </head>
 
   <body onload="initializeAndImport();">
@@ -84,6 +84,7 @@ SOFTWARE.
 	<div id="srcEditButtons" style="display:flex; height:79px; overflow-x:scroll" >
 	  <div>
 	    &nbsp;<button id="TraceBeautify" class="buttonTracer" style="height:53px;" onclick="beautify()">Beautify</button>
+	    &nbsp;<button id="Listify" class="buttonTracer" style="height:53px;" onclick="listify()">Listify Src</button>
 	  </div>
 	</div>
 	<div id="buttonSep" class="resizer"></div>
