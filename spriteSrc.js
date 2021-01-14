@@ -624,6 +624,7 @@ function getNextSymbol(){
     svgEl.click();
     resizer = document.getElementById('dragMe');
     resizer.style.cursor = "ew-resize";
+    resetTraceDetails();
 }
 
 function getPreviousSymbol(){
@@ -646,6 +647,7 @@ function getPreviousSymbol(){
     svgEl.click();
     resizer = document.getElementById('dragMe');
     resizer.style.cursor = "ew-resize";
+    resetTraceDetails();
 }
 
 function validateAndGetSrcElement(){
@@ -1051,23 +1053,41 @@ function getDestination(fromLoc, deltaLine, deltaCh)
     return toLoc;
 }
 
+function resetTraceDetails() {
+    // Initialization for src level commands
+    srcLines   = [];
+    srcLoc     = {}; // object recording src location for first path element (for tracing)
+    srcTokenL  = []; // actual split up of text (without parsing into float)
+    srcOpL     = [];    // srcOpL[i] - denotes the operation to be performed ...
+    srcParamL  = []; // srcParamL[i] - list of parameters extracted for srcLines[i]
+    srcSelectL = []; // info about selection for each parameter in srcLines[i]
+
+    /** Variables to map a single line of src code into multiple concrete Operations */
+    srcOpIdL  = []; // srcOpIdL[i] - [startIdx, endIdx] - indices into actual, concrete operations
+    /** Variables below (opL, paramL, ... ) denote actual operations for each step of trace*/
+    /** opL - actual list of operations for tracing (obtained from srcLines) */
+    opL       = [];
+    /** paramL - corresponding parameters for each of operations in opL */
+    paramL    = [];
+    // Store the coords obtained as a result of each operation as an object
+    coordsL   = [];
+    /** selectL - to obtain the various selections in source code for actual operations (spl. */
+    selectL   = [];
+    // To illustrate information about the movement visually...
+    visInfoL  = [];
+
+    /** Relevant variables for tracing the current symbol/image*/
+    tracerSrc  = ""; // Current source code for processing  (only data attribute of first path element for now ...)
+    /** tracer variables to keep track of trace state. */
+    tracerLst = [];
+    opIdx     = -1; // index into actual operation in tracerLsr
+}
+
 /** currSrc is set to current source value in editor*/
 let currSrc = "";
 function getFirstPathData()
 {
-    // Initialization for src level commands
-    srcTokenL  = []; // actual split up of text (without parsing into float)
-    srcOpL     = []; // srcOpL[i] - indices to denote operations for srcLines[i] ([i1, i2, ... ik] ...).
-    srcParamL  = []; // srcParamL[i] - list of parameters extracted for srcLines[i]
-    srcSelectL = []; // info about selection for each parameter in srcLines[i]
-    // Initialization for concrete operations
-    srcOpIdL   = []; // srcOpIdL[srcLineIdx]  = endIdx - index to denote last actual operation in opL for each source line
-    opL        = [];
-    paramL     = [];
-    coordsL    = [];
-    selectL    = [];
-    visInfoL   = [];
-
+    resetTraceDetails();
     currSrc = srcEditor.doc.getValue();
     let pathL = currSrc.match(reForLoc);
     preSrc  = pathL[1];
@@ -1090,6 +1110,8 @@ function getFirstPathData()
 	deltaChar = last.length;
 	srcLines.splice(0, 1); // remove first space segment.
     }
+    let startIdx = tracerSrc.indexOf(srcLines[0]);
+    tracerSrc = tracerSrc.slice(startIdx);
     toLoc  = getDestination(fromLoc, deltaLine, deltaChar);
     srcLoc = {'from' : fromLoc, 'to' : toLoc, 'srcEnd' : srcEnd};
     return tracerSrc;
@@ -1101,13 +1123,20 @@ function traceSymbol(){
     /** Get source and save it for future reference (while tracing)*/
     getFirstPathData();
     let currCoords = {'x':0, 'y':0};
+    // First Phase : process source code
     for(let i=0; i < srcLines.length; i++) {
 	extractLineTokens(i);
 	extractLineSelections(i); // selections at command level (or source lines)
     }
+    // Second Phase : generate required operations for source lines
     for(let i=0; i < srcLines.length; i++) {
 	genLineCoords(i);
 	let currOp = srcOpL[i];
+    }
+    // Finally, required traceLst generated containing all information for each step of the trace.
+    for(let i=0; i< opL.length; i++) {
+	generateTraceElements(i);
+	getInfoFor(i);
     }
     console.log("Generated details for tracing ...");
 }
@@ -1251,6 +1280,14 @@ function setSelection(selectLst, i, j)
     srcEditor.doc.setSelection(from, to);
 }
 
+function getSelectionForOperation(srcSelectLst){
+    let nSelect  = srcSelectLst.length;
+    let selStart = srcSelectLst[0];
+    let selEnd   = srcSelectLst[nSelect - 1];
+    let selObj   = {'from' : selStart['from'], 'to' : selEnd['to'], 'srcEnd' : selEnd['srcEnd']};
+    return selObj;
+}
+
 // initPath coordinates for tracking when a path is created ...
 let initPathX = 0;
 let initPathY = 0;
@@ -1281,7 +1318,7 @@ function genLineCoords(srcLineIdx){
     let srcLine = srcLines[srcLineIdx];
     let params  = srcParamL[srcLineIdx];
     let paramId = 0; // current index to denote next parameter to process ...
-    let select  = srcSelectL[srcLineIdx];
+    let sLst    = srcSelectL[srcLineIdx];
 
     // Definitions : https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/d
     // First, process operations that have no parameters
@@ -1291,7 +1328,7 @@ function genLineCoords(srcLineIdx){
 	opL.push(operation);
 	coordsL.push(currCoords);
 	paramL.push([]);
-	selectL.push([]);
+	selectL.push(getSelectionForOperation(sLst));
     }
 
     // Next, process operations that consume a constant number of parameters (alongwith implicit operations),
@@ -1306,7 +1343,7 @@ function genLineCoords(srcLineIdx){
 	let moveOp = operation; // save current operation before modification (for implicit to explicit conversion)
 	// implicit conversion to L operation
 	operation = "L";
-	if(operation == "m") {
+	if(moveOp == "m") {
 	    currCoords['x'] += currX;
 	    currCoords['y'] += currY;
 	    // implicit conversion to l operation
@@ -1317,7 +1354,7 @@ function genLineCoords(srcLineIdx){
 	// Now, to add in a concrete operation alongwith additional data
 	opL.push(moveOp); // moveOp denotes original operation
 	paramL.push(params.slice(0, 2));  // slice is non-destructive
-	selectL.push(select.slice(0, 2)); // similar to params selection
+	selectL.push(getSelectionForOperation(sLst.slice(0, 3))); // similar to params selection (but add 1 for operation)
 	coordsL.push(currCoords);
 	// Set paramId to denote consumption of first two parameters
 	paramId = 2;
@@ -1397,7 +1434,8 @@ function genLineCoords(srcLineIdx){
 	opL.push(operation);
 	coordsL.push(currCoords);
 	paramL.push(params.slice(paramId, paramId + nParams)); // slice is non-destructive
-	selectL.push(select.slice(paramId, paramId + nParams)); // similar to params selection
+	// similar to params selection (but start with operation and end with last param)
+	selectL.push(getSelectionForOperation(sLst.slice(0, paramId + nParams + 1)));
 	paramId = paramId + nParams; // finally, update paramId
     }
 
@@ -1411,12 +1449,20 @@ function genLineCoords(srcLineIdx){
 /*
  * Visually draw the required sketches to better follow current operation with parameters
  */
-function getInfoFor(operation, params, prevCoords, nextCoords){
+function getInfoFor(i){
     let cmds = "";
-    let prevX = prevCoords['x'];
-    let prevY = prevCoords['y'];
-    let nextX = nextCoords['x'];
-    let nextY = nextCoords['y'];
+    let prevX = 0;
+    let prevY = 0;
+    let prevCoords = {'x' : prevX, 'y' : prevY};
+    if(i > 0){
+	prevCoords = coordsL[i-1];
+	prevX = prevCoords['x'];
+	prevY = prevCoords['y'];
+    }
+    let nextX = coordsL[i]['x'];
+    let nextY = coordsL[i]['y'];
+    let params = paramL[i];
+    let operation = opL[i];
 
     if(operation.match(/z/i)) {// closepath ...
 	cmds += "<circle cx=\""+prevX+"\" cy=\""+prevY+"\" r=\"5\" fill=\"red\"/>\n";
@@ -1455,6 +1501,13 @@ function getInfoFor(operation, params, prevCoords, nextCoords){
 	cmds += "<line style =\"stroke:rgb(155, 155, 155); stroke-width: 2;\" ";
 	cmds += "stroke-dasharray=\"5, 5\" x1=\""+point2X+"\" y1=\""+point2Y+"\" x2=\""+nextX+"\" y2=\""+nextY+"\"></line>\n";
     }
+
+    if(tracerLst.length <= i){
+	console.log('tracerLst.length : '+tracerLst.length+' but index i : '+i);
+    } else {
+	tracerLst[i]['visInfo'] = cmds;
+    }
+    visInfoL.push(cmds);
     return cmds;
 }
 
@@ -1462,69 +1515,15 @@ function getInfoFor(operation, params, prevCoords, nextCoords){
  * Obtain trace Elements for command operation applied with paramsLst ...
  */
 // Recalling tracerLst info described earlier ...
-/**
- * tracerLst - All info required to trace path in tracerSrc (all computations done and stored here)
- * tracerLst[i] - {'initCoords' : {x:xVal, y:yVal}, 'finalCoords':{x:xVal, y:yVal}, 'select': {from, to}, 'srcEnd':number, 'visInfo':value}
- *    where initCoords  - what were the coordinates before execution of current/latest command
- *          finalCoords - final coordinates after executing latest command.
- *          selectFrom  - {line:lineNo, ch:ch}
- *          selectTo    - {line:lineNo, ch:ch}
- *          srcEnd     - idx into tracerSrc (for denoting last execute code)
- *          visInfo     - relevant code to give info regarding latest command executed (see codeDisplay function)
- * P.S:- Actual command, parameters for tracerLst[i] is given by opL[i], paramL[i] respectively.
- */
-// srcResult['finalCoords'] = currCoords;
-// srcResult['operations']  = ops;
-// selectionLst[i] - {line:lineNo, ch: chNo} for each value paramsLst[i].
-function generateTraceElements(initCoords, operationSel, selectionLst, operation, paramsLst){
+function generateTraceElements(opIdx){
     let tracerElem = {};
-    let prevCoords = initCoords;
-    let currCoords = {};
-    let operations = [];
-    let remainingParams = paramsLst;
-    let remainingSelLst = selectionLst;
-    if(paramsLst.length == 0) { // zero param command (closepath , 'z' command)
-	coordsObject = getNextCoords(prevCoords, operationSel, remainingSelLst, operation,  remainingParams);
-	currCoords   = coordsObject['finalCoords'];
-	tracerElem['initCoords']  = prevCoords;
-	tracerElem['finalCoords'] = coordsObject['finalCoords'];
-	tracerElem['selectFrom']  = operationSel['from']; // Always select from current operation (to reduce complexity for now ...)
-	// selectTo, srcEnd depends on the final parameter selected in getting next coordinate
-	tracerElem['selectTo']    = coordsObject['selectTo'];
-	tracerElem['srcEnd']      = coordsObject['srcEnd'];
-	tracerElem['visInfo']     = getInfoFor(operation, remainingParams, prevCoords, currCoords);
-	remainingParams = coordsObject['remainingParams'];
-	remainingSelLst = coordsObject['remainingSelLst'];
-	prevCoords = currCoords;
-	tracerLst.push(tracerElem);
-	operations.push(opL.length);
-	opL.push(operation);
-	paramL.push(coordsObject['selectedParams']);
-    }
-
-    while(remainingParams.length > 0) { // for other commands
-	tracerElem = {}; // construct tracerElem object each time;
-	// All the work for actually computing the required coordinates, obtaining selection defered to getNextCoords ...
-	coordsObject = getNextCoords(prevCoords, operationSel, remainingSelLst, operation,  remainingParams);
-	currCoords   = coordsObject['finalCoords'];
-	tracerElem['initCoords']  = prevCoords;
-	tracerElem['finalCoords'] = coordsObject['finalCoords'];
-	tracerElem['selectFrom']  = operationSel['from']; // Always select from current operation (to reduce complexity for now ...)
-	// selectTo, srcEnd depends on the final parameter selected in getting next coordinate
-	tracerElem['selectTo']    = coordsObject['selectTo'];
-	tracerElem['srcEnd']      = coordsObject['srcEnd'];
-	tracerElem['visInfo']     = getInfoFor(operation, remainingParams, prevCoords, currCoords);
-	remainingParams = coordsObject['remainingParams'];
-	remainingSelLst = coordsObject['remainingSelLst'];
-	prevCoords = currCoords;
-	tracerLst.push(tracerElem);
-	operations.push(opL.length);
-	opL.push(operation);
-	paramL.push(coordsObject['selectedParams']);
-    }
-    srcResult = tracerElem;
-    srcResult['operations'] = operations;
-    return srcResult;
+    let displaySrc = tracerSrc.slice(0, selectL[opIdx]['srcEnd']);
+    let from = selectL[opIdx]['from'];
+    let to   = selectL[opIdx]['to'];
+    let select  = {'from' : from , 'to' : to};
+    tracerElem['select']  = select;
+    tracerElem['text'] = displaySrc;
+    tracerLst.push(tracerElem);
 }
 
 function getTracerButtonSrc(fName, value){
@@ -1548,28 +1547,44 @@ function getTracerDetails(idx) {
     console.log(targetCode);
 }
 
-function codeDisplay(idx){
+let srcSymbolCurr = "";
+function getCodeToDisplay(idx) {
+    if(idx <= 0) {
+	idx = 0;
+    }
     if(idx >= tracerLst.length) {
 	idx = tracerLst.length-1;
     }
+
     currTrace = tracerLst[idx];
-    let from = currTrace['selectFrom'];
-    let to   = currTrace['selectTo'];
+    let from = currTrace['select']['from'];
+    let to   = currTrace['select']['to'];
     // TODO: how to show latest command related content  differently? Need to figure it out ...
     srcEditor.doc.setSelection(from, to);
-    let endIdx = currTrace['srcEnd'];
-    let srcCode = tracerSrc.slice(0, endIdx);
+    srcSymbolCurr = currTrace['text'];
     let visInfo = currTrace['visInfo'];
     if(idx<0) {
 	executedCode = "";
     }
-    let targetCode = "<path d=\"" + srcCode + "\"></path>" + visInfo;
+    let targetCode = "<path d=\"" + srcSymbolCurr + "\"></path>" + visInfo;
+    return targetCode;
+}
+
+function codeDisplay(idx){
+    let targetCode = getCodeToDisplay(idx);
     let targetElem = document.getElementById('bViews-symbolDisplayed');
     targetElem.innerHTML = targetCode;
+    return targetCode;
 }
 
 function tracerPrev(){
-    opIdx--;
+    if(tracerLst.length == 0) {
+	traceSymbol();
+	opIdx = 0;
+    } else {
+	opIdx--;
+    }
+
     if(opIdx<0) {
 	opIdx = -1;
 	alert('Beginning of Trace Src code reached !!!');
@@ -1582,7 +1597,13 @@ function tracerPause(){
 }
 
 function tracerNext(){
-    opIdx++;
+    if(tracerLst.length == 0) {
+	traceSymbol();
+	opIdx = 0;
+    } else {
+	opIdx++;
+    }
+
     if(opIdx > tracerLst.length){
 	opIdx = tracerLst.length;
     }
