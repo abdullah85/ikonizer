@@ -9,7 +9,3 @@ A web app that enables manipulation of svg, as well as svg sprites
 # Online Sample Editor
 
 - Example editor Instance of [codeMirror](codemirrorInstance.html) (using [codemirror](https://codemirror.net)).
-
-# About
-
-- See [BitwiseViews](https://bitwiseviews.github.io)
